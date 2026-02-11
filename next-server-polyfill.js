@@ -5,10 +5,24 @@
 const g = typeof globalThis !== 'undefined' ? globalThis : typeof global !== 'undefined' ? global : this;
 if (typeof g.self === 'undefined') g.self = g;
 if (typeof g.window === 'undefined') g.window = g;
+// Mock window.location pour le SSR (évite "Cannot destructure property 'protocol' of 'window.location'")
+const fakeLocation = {
+  protocol: 'https:',
+  host: 'lespcdewarren.fr',
+  hostname: 'lespcdewarren.fr',
+  href: 'https://lespcdewarren.fr/',
+  origin: 'https://lespcdewarren.fr',
+  pathname: '/',
+  search: '',
+  hash: '',
+  port: '',
+};
+if (g.window && typeof g.window.location === 'undefined') g.window.location = fakeLocation;
 // Node expose les globaux via global ; s'assurer que self/window y sont
 if (typeof global !== 'undefined') {
   if (typeof global.self === 'undefined') global.self = global;
   if (typeof global.window === 'undefined') global.window = global;
+  if (global.window && typeof global.window.location === 'undefined') global.window.location = fakeLocation;
 }
 
 // Mock minimal de document pour le SSR (évite "document is not defined" dans certaines libs)
