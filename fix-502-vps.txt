@@ -1,0 +1,36 @@
+Commandes à exécuter sur le VPS pour diagnostiquer et corriger l'erreur 502:
+
+1. Se connecter au VPS:
+ssh ubuntu@51.38.236.183
+cd /var/www/lespcdewarren/lespcdewarren
+
+2. Vérifier l'état de PM2:
+pm2 status
+
+3. Vérifier les logs de l'application:
+pm2 logs lespcdewarren --lines 50
+
+4. Si l'application est arrêtée ou en erreur, vérifier les logs d'erreur:
+pm2 logs lespcdewarren --err --lines 50
+
+5. Redémarrer l'application:
+pm2 restart lespcdewarren
+
+6. Si ça ne fonctionne pas, vérifier que le build est OK:
+ls -la .next
+
+7. Si .next n'existe pas ou est corrompu, rebuilder:
+rm -rf .next
+npm run build
+pm2 restart lespcdewarren
+
+8. Vérifier que l'application écoute sur le bon port (généralement 3000):
+pm2 logs lespcdewarren | grep -i "ready\|listening\|port"
+
+9. Vérifier la configuration nginx:
+sudo nginx -t
+sudo systemctl status nginx
+
+10. Si nécessaire, redémarrer nginx:
+sudo systemctl restart nginx
+

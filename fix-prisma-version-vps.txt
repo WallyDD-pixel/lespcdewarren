@@ -1,0 +1,29 @@
+Le problème : Prisma 7.0.1 est installé au lieu de Prisma 6. Il faut revenir à la bonne version.
+
+Commandes à exécuter sur le VPS:
+
+1. Arrêter l'application:
+pm2 stop lespcdewarren
+
+2. Désinstaller Prisma 7:
+npm uninstall @prisma/client prisma
+
+3. Installer la bonne version (Prisma 6):
+npm install @prisma/client@^6.14.0 prisma@^6.14.0
+
+4. Vérifier la version installée:
+npx prisma --version
+
+5. Régénérer le client Prisma:
+npx prisma generate
+
+6. Vérifier que paymentMethod est maintenant dans le client:
+grep -r "paymentMethod" node_modules/.prisma/client/schema.prisma | head -2
+
+7. Rebuild:
+rm -rf .next
+npm run build
+
+8. Redémarrer:
+pm2 start lespcdewarren
+

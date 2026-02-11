@@ -1,0 +1,431 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Category {
+  id        Int        @id @default(autoincrement())
+  name      String
+  slug      String     @unique
+  parentId  Int?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  parent    Category?  @relation("CategoryToCategory", fields: [parentId], references: [id])
+  children  Category[] @relation("CategoryToCategory")
+  listings  Listing[]  @relation("CategoryToListing")
+  products  Product[]
+}
+
+model Product {
+  id           Int                  @id @default(autoincrement())
+  name         String
+  slug         String               @unique
+  description  String
+  priceCents   Int
+  currency     String               @default("EUR")
+  sku          String?              @unique
+  categoryId   Int
+  stock        Int                  @default(0)
+  active       Boolean              @default(true)
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  specs        Json?
+  participants ContestParticipant[]
+  orderItems   OrderItem[]
+  category     Category             @relation(fields: [categoryId], references: [id])
+  images       ProductImage[]
+  reviews      Review[]
+  variants     Variant[]
+}
+
+model ProductImage {
+  id        Int     @id @default(autoincrement())
+  url       String
+  alt       String?
+  productId Int
+  product   Product @relation(fields: [productId], references: [id])
+}
+
+model Variant {
+  id         Int         @id @default(autoincrement())
+  productId  Int
+  name       String
+  priceCents Int
+  sku        String?     @unique
+  stock      Int         @default(0)
+  orderItems OrderItem[]
+  product    Product     @relation(fields: [productId], references: [id])
+}
+
+model Order {
+  id                   Int            @id @default(autoincrement())
+  email                String
+  amountCents          Int
+  currency             String         @default("EUR")
+  status               OrderStatus    @default(PENDING)
+  shippingName         String?
+  shippingAddr1        String?
+  shippingAddr2        String?
+  shippingZip          String?
+  shippingCity         String?
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+  userId               Int?
+  trackingNumber       String?
+  trackingUrl          String?
+  shippingMethod       String?
+  shippingCostCents    Int            @default(0)
+  invoiceNumber        String?        @unique
+  invoiceSentAt        DateTime?
+  invoiceNotes         String?
+  invoiceCustomerName  String?
+  invoiceCustomerAddr1 String?
+  invoiceCustomerZip   String?
+  invoiceCustomerCity  String?
+  user                 User?          @relation(fields: [userId], references: [id])
+  items                OrderItem[]
+}
+
+model OrderItem {
+  id         Int      @id @default(autoincrement())
+  orderId    Int
+  productId  Int
+  variantId  Int?
+  quantity   Int      @default(1)
+  priceCents Int
+  variant    Variant? @relation(fields: [variantId], references: [id])
+  product    Product  @relation(fields: [productId], references: [id])
+  order      Order    @relation(fields: [orderId], references: [id])
+}
+
+model Testimonial {
+  id             Int       @id @default(autoincrement())
+  name           String
+  country        String?
+  rating         Int
+  title          String?
+  content        String
+  experienceDate DateTime?
+  source         String    @default("manual")
+  published      Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+}
+
+model Review {
+  id        Int      @id @default(autoincrement())
+  productId Int
+  userId    Int
+  rating    Int
+  title     String?
+  content   String
+  published Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id])
+  product   Product  @relation(fields: [productId], references: [id])
+
+  @@unique([userId, productId])
+}
+
+model User {
+  id                       Int                 @id @default(autoincrement())
+  email                    String              @unique
+  passwordHash             String
+  name                     String?
+  role                     Role                @default(USER)
+  createdAt                DateTime            @default(now())
+  sellerConversations      Conversation[]      @relation("SellerConversations")
+  buyerConversations       Conversation[]      @relation("BuyerConversations")
+  favoriteListings         FavoriteListing[]
+  listings                 Listing[]
+  marketplaceCasesAsSeller MarketplaceCase[]   @relation("SellerCases")
+  marketplaceCasesAsBuyer  MarketplaceCase[]   @relation("BuyerCases")
+  marketplaceOrdersSold    MarketplaceOrder[]  @relation("SellerOrders")
+  marketplaceOrdersBought  MarketplaceOrder[]  @relation("BuyerOrders")
+  messages                 Message[]
+  notifications            Notification[]
+  orders                   Order[]
+  reviews                  Review[]
+  profile                  UserProfile?
+  withdrawals              WithdrawalRequest[]
+}
+
+model UserProfile {
+  id         Int      @id @default(autoincrement())
+  userId     Int      @unique
+  firstName  String
+  lastName   String
+  phone      String?
+  address1   String
+  address2   String?
+  zip        String
+  city       String
+  department String?
+  country    String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  user       User     @relation(fields: [userId], references: [id])
+}
+
+model Listing {
+  id            Int                @id @default(autoincrement())
+  title         String
+  slug          String             @unique
+  description   String
+  priceCents    Int
+  currency      String             @default("EUR")
+  condition     ListingCondition
+  specs         Json?
+  city          String?
+  zip           String?
+  allowOnline   Boolean            @default(true)
+  allowInPerson Boolean            @default(true)
+  status        ListingStatus      @default(PUBLISHED)
+  sellerId      Int
+  categoryId    Int?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  country       String?
+  conversations Conversation[]
+  favorites     FavoriteListing[]
+  category      Category?          @relation("CategoryToListing", fields: [categoryId], references: [id])
+  seller        User               @relation(fields: [sellerId], references: [id])
+  images        ListingImage[]
+  orders        MarketplaceOrder[]
+}
+
+model ListingImage {
+  id        Int     @id @default(autoincrement())
+  listingId Int
+  url       String
+  alt       String?
+  listing   Listing @relation(fields: [listingId], references: [id])
+}
+
+model FavoriteListing {
+  userId    Int
+  listingId Int
+  listing   Listing @relation(fields: [listingId], references: [id])
+  user      User    @relation(fields: [userId], references: [id])
+
+  @@id([userId, listingId])
+}
+
+model Conversation {
+  id        Int       @id @default(autoincrement())
+  listingId Int
+  buyerId   Int
+  sellerId  Int
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  seller    User      @relation("SellerConversations", fields: [sellerId], references: [id])
+  buyer     User      @relation("BuyerConversations", fields: [buyerId], references: [id])
+  listing   Listing   @relation(fields: [listingId], references: [id])
+  messages  Message[]
+
+  @@unique([listingId, buyerId])
+}
+
+model Message {
+  id             Int            @id @default(autoincrement())
+  conversationId Int
+  authorId       Int
+  content        String
+  imageUrl       String?
+  createdAt      DateTime       @default(now())
+  readAt         DateTime?
+  author         User           @relation(fields: [authorId], references: [id])
+  conversation   Conversation   @relation(fields: [conversationId], references: [id])
+  images         MessageImage[]
+}
+
+model MessageImage {
+  id        Int     @id @default(autoincrement())
+  messageId Int
+  url       String
+  message   Message @relation(fields: [messageId], references: [id])
+}
+
+model WithdrawalRequest {
+  id            Int              @id @default(autoincrement())
+  sellerId      Int
+  amountCents   Int
+  paypalEmail   String
+  status        WithdrawalStatus @default(PENDING)
+  note          String?
+  payoutBatchId String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  processedAt   DateTime?
+  seller        User             @relation(fields: [sellerId], references: [id])
+
+  @@index([sellerId])
+}
+
+model MarketplaceOrder {
+  id                   Int                    @id @default(autoincrement())
+  listingId            Int
+  buyerId              Int
+  sellerId             Int
+  amountCents          Int
+  currency             String                 @default("EUR")
+  paymentMethod        PaymentMethod          @default(PAYPAL_ONLINE_1X)
+  status               MarketplaceOrderStatus @default(PENDING)
+  paypalOrderId        String?
+  paypalCaptureId      String?
+  trackingNumber       String?
+  trackingUrl          String?
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  invoiceNumber        String?                @unique
+  invoiceSentAt        DateTime?
+  invoiceNotes         String?
+  invoiceCustomerName  String?
+  invoiceCustomerAddr1 String?
+  invoiceCustomerZip   String?
+  invoiceCustomerCity  String?
+  MarketplaceCase      MarketplaceCase[]
+  seller               User                   @relation("SellerOrders", fields: [sellerId], references: [id])
+  buyer                User                   @relation("BuyerOrders", fields: [buyerId], references: [id])
+  listing              Listing                @relation(fields: [listingId], references: [id])
+
+  @@index([paypalOrderId])
+}
+
+model Notification {
+  id        Int              @id @default(autoincrement())
+  userId    Int
+  type      NotificationType
+  title     String
+  message   String?
+  link      String?
+  data      Json?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+  user      User             @relation(fields: [userId], references: [id])
+
+  @@index([userId, readAt])
+  @@index([createdAt])
+}
+
+model ContestParticipant {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String
+  phone     String?
+  productId Int?
+  metadata  Json?
+  createdAt DateTime @default(now())
+  product   Product? @relation(fields: [productId], references: [id])
+}
+
+model MarketplaceCase {
+  id                   Int                   @id @default(autoincrement())
+  orderId              Int
+  buyerId              Int
+  sellerId             Int
+  kind                 MarketplaceCaseKind
+  reason               String?
+  description          String?
+  photos               Json?
+  returnTrackingNumber String?
+  returnTrackingUrl    String?
+  status               MarketplaceCaseStatus @default(OPEN)
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  seller               User                  @relation("SellerCases", fields: [sellerId], references: [id])
+  buyer                User                  @relation("BuyerCases", fields: [buyerId], references: [id])
+  order                MarketplaceOrder      @relation(fields: [orderId], references: [id])
+
+  @@index([orderId])
+}
+
+model Setting {
+  key       String   @id
+  value     String?
+  updatedAt DateTime
+}
+
+enum OrderStatus {
+  PENDING
+  PAYMENT_RECEIVED
+  PREPARING
+  SHIPPED
+  DELIVERED
+  PAID
+  CANCELED
+  REFUNDED
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum ListingCondition {
+  NEW
+  LIKE_NEW
+  VERY_GOOD
+  GOOD
+  FAIR
+  FOR_PARTS
+}
+
+enum ListingStatus {
+  DRAFT
+  PENDING_REVIEW
+  PUBLISHED
+  RESERVED
+  SOLD
+  ARCHIVED
+}
+
+enum PaymentMethod {
+  PAYPAL_ONLINE_1X
+  PAYPAL_ONLINE_4X
+  CB_ONLINE_1X
+  CB_ONLINE_4X
+  IN_PERSON
+}
+
+enum WithdrawalStatus {
+  PENDING
+  PROCESSING
+  PAID
+  CANCELLED
+}
+
+enum MarketplaceOrderStatus {
+  PENDING
+  IN_PERSON_SCHEDULED
+  PAID
+  COMPLETED
+  CANCELLED
+}
+
+enum NotificationType {
+  WITHDRAWAL_STATUS
+  ORDER_EVENT
+  CASE_EVENT
+}
+
+enum MarketplaceCaseKind {
+  ISSUE
+  RETURN
+}
+
+enum MarketplaceCaseStatus {
+  OPEN
+  AWAITING_RETURN
+  RETURN_SHIPPED
+  RECEIVED
+  REFUNDED
+  REJECTED
+  RESOLVED
+  CANCELLED
+}

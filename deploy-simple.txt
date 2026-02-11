@@ -1,0 +1,9 @@
+Commandes SCP simplifiées - Copiez-collez dans PowerShell:
+
+1. Transférer le schéma Prisma:
+scp prisma\schema.prisma ubuntu@51.38.236.183:/var/www/lespcdewarren/lespcdewarren/prisma/schema.prisma
+
+2. Transférer le schéma Prisma (pas de migration nécessaire car on retire paymentMethod)
+
+3. Transférer package.json:
+scp package.json ubuntu@51.38.236.183:/var/www/lespcdewarren/lespcdewarren/package.json

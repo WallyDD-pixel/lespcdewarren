@@ -1,0 +1,29 @@
+Commandes à exécuter sur le VPS pour corriger le problème concours:
+
+1. Se connecter:
+ssh ubuntu@51.38.236.183
+cd /var/www/lespcdewarren/lespcdewarren
+
+2. Vérifier quelle base de données est utilisée:
+cat .env | grep DATABASE_URL
+
+3. Vérifier que la colonne existe dans la bonne base:
+sqlite3 prisma/prod.db "PRAGMA table_info(Product);" | grep concours
+
+4. Si la colonne existe mais Prisma ne la voit pas, forcer la régénération:
+rm -rf node_modules/.prisma
+rm -rf node_modules/@prisma/client
+npx prisma generate
+
+5. Vider le cache Next.js:
+rm -rf .next
+
+6. Rebuild:
+npm run build
+
+7. Redémarrer:
+pm2 restart lespcdewarren
+
+Si ça ne marche toujours pas, vérifier que le schéma Prisma contient bien concours:
+grep concours prisma/schema.prisma
+

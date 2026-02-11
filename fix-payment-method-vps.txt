@@ -1,0 +1,29 @@
+Commandes à exécuter sur le VPS pour ajouter la colonne paymentMethod:
+
+1. Se connecter:
+ssh ubuntu@51.38.236.183
+cd /var/www/lespcdewarren/lespcdewarren
+
+2. Vérifier si la colonne existe:
+sqlite3 prisma/prod.db "PRAGMA table_info(Order);" | grep paymentMethod
+
+3. Si la colonne n'existe pas, l'ajouter:
+sqlite3 prisma/prod.db "ALTER TABLE \"Order\" ADD COLUMN \"paymentMethod\" TEXT DEFAULT 'PAYPAL_ONLINE_1X';"
+
+4. Vérifier que la colonne a été ajoutée:
+sqlite3 prisma/prod.db "PRAGMA table_info(Order);" | grep paymentMethod
+
+5. Marquer la migration comme appliquée:
+npx prisma migrate resolve --applied 20251129135805_add_payment_method_to_order
+
+6. Régénérer le client Prisma:
+rm -rf node_modules/.prisma
+rm -rf node_modules/@prisma/client
+npm install @prisma/client
+npx prisma generate
+
+7. Rebuild et redémarrer:
+rm -rf .next
+npm run build
+pm2 restart lespcdewarren
+

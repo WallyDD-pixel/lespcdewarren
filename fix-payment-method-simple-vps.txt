@@ -1,0 +1,38 @@
+Commandes à exécuter sur le VPS (une par une):
+
+1. Arrêter l'application:
+pm2 stop lespcdewarren
+
+2. Vérifier le schéma Prisma (les valeurs d'enum ne doivent PAS avoir de guillemets):
+grep "PAYPAL_ONLINE_1X" prisma/schema.prisma
+
+Si vous voyez @default("PAYPAL_ONLINE_1X") avec des guillemets, corrigez avec:
+sed -i 's/@default("PAYPAL_ONLINE_1X")/@default(PAYPAL_ONLINE_1X)/g' prisma/schema.prisma
+sed -i 's/@default("PENDING")/@default(PENDING)/g' prisma/schema.prisma
+
+3. Supprimer complètement le cache:
+rm -rf node_modules/.prisma
+rm -rf node_modules/@prisma/client
+rm -rf .next
+
+4. Réinstaller Prisma:
+npm install @prisma/client prisma
+
+5. Synchroniser le schéma avec la base:
+npx prisma db pull --force
+
+6. Vérifier que paymentMethod est toujours présent:
+grep paymentMethod prisma/schema.prisma
+
+7. Régénérer le client:
+npx prisma generate
+
+8. Vérifier que le client contient paymentMethod:
+grep -r "paymentMethod" node_modules/.prisma/client/ | head -2
+
+9. Rebuild:
+npm run build
+
+10. Redémarrer:
+pm2 start lespcdewarren
+

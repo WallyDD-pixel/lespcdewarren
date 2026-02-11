@@ -1,0 +1,53 @@
+Script de diagnostic et correction pour shippingPhone sur le VPS:
+
+1. Se connecter:
+ssh ubuntu@51.38.236.183
+cd /var/www/lespcdewarren/lespcdewarren
+
+2. Arrêter l'application:
+pm2 stop lespcdewarren
+pm2 delete lespcdewarren
+
+3. Vérifier que la colonne existe dans la base:
+sqlite3 prisma/prod.db "PRAGMA table_info(\"Order\");" | grep shippingPhone
+
+4. Vérifier que le schéma Prisma contient shippingPhone:
+grep shippingPhone prisma/schema.prisma
+
+5. Supprimer COMPLÈTEMENT le cache Prisma:
+rm -rf node_modules/.prisma
+rm -rf node_modules/@prisma/client
+
+6. Réinstaller @prisma/client:
+npm install @prisma/client@6.14.0
+
+7. Régénérer le client Prisma:
+npx prisma generate
+
+8. Vérifier que shippingPhone est dans le client généré:
+grep -r "shippingPhone" node_modules/.prisma/client/schema.prisma
+
+9. Si shippingPhone n'apparaît pas, synchroniser le schéma avec la base:
+npx prisma db pull --force
+
+10. Vérifier que shippingPhone est toujours dans le schéma après db pull:
+grep shippingPhone prisma/schema.prisma
+
+11. Si shippingPhone a disparu, le rajouter manuellement dans le schéma ou transférer depuis votre machine locale
+
+12. Régénérer à nouveau:
+npx prisma generate
+
+13. Vérifier à nouveau:
+grep -r "shippingPhone" node_modules/.prisma/client/schema.prisma
+
+14. Rebuild:
+rm -rf .next
+npm run build
+
+15. Redémarrer:
+pm2 start npm --name lespcdewarren -- start
+
+16. Vérifier les logs:
+pm2 logs lespcdewarren --lines 10
+
