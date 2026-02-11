@@ -4,29 +4,19 @@ import webpack from "webpack";
 const nextConfig: NextConfig = {
   images: { unoptimized: true },
   eslint: { ignoreDuringBuilds: true },
-  // Configuration pour le middleware Edge Runtime
-  experimental: {
-    // Exclure globalThis du middleware
-    serverComponentsExternalPackages: ['globalThis'],
-  },
+  // Next 15: packages à garder externes côté serveur
+  serverExternalPackages: ['pdfkit'],
   webpack: (config, { isServer, webpack }) => {
-    // Remplacer globalThis uniquement côté client/middleware (pas côté serveur où il est natif)
-    if (!isServer) {
-      // Utiliser resolve.alias pour remplacer les imports directs
-      config.resolve = config.resolve || {};
-      config.resolve.alias = {
-        ...config.resolve.alias,
-        'globalThis': require.resolve('./src/lib/globalThis-polyfill.js'),
-      };
-      
-      // Utiliser NormalModuleReplacementPlugin pour remplacer même les imports depuis node_modules
-      config.plugins.push(
-        new webpack.NormalModuleReplacementPlugin(
-          /^globalThis$/,
-          require.resolve('./src/lib/globalThis-polyfill.js')
-        )
-      );
-    }
+    // Résoudre le module 'globalThis' (utilisé par Next) vers notre polyfill (client + serveur)
+    const polyfillPath = require.resolve('./src/lib/globalThis-polyfill.js');
+    config.resolve = config.resolve || {};
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      globalThis: polyfillPath,
+    };
+    config.plugins.push(
+      new webpack.NormalModuleReplacementPlugin(/^globalThis$/, polyfillPath)
+    );
 
     if (isServer) {
       // Laisser pdfkit en dépendance externe côté serveur pour préserver l'accès à ses fichiers de données (AFM)
