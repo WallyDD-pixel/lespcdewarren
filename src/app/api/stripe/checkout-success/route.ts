@@ -75,8 +75,182 @@ export async function POST(req: NextRequest) {
     };
 
     if (isMarketplace && listingId) {
-      // TODO: Impl├®menter la logique marketplace compl├¿te
-      return NextResponse.json({ error: "Marketplace non encore impl├®ment├® avec Stripe Checkout" }, { status: 400 });
+      // Logique marketplace avec Stripe
+      const buyerId = metadata?.buyerId ? Number(metadata.buyerId) : null;
+      const sellerId = metadata?.sellerId ? Number(metadata.sellerId) : null;
+      
+      if (!buyerId || !sellerId) {
+        return NextResponse.json({ error: "Métadonnées marketplace invalides" }, { status: 400 });
+      }
+
+      // Récupérer l'annonce
+      const listing = await prisma.listing.findUnique({ where: { id: listingId } });
+      if (!listing) {
+        return NextResponse.json({ error: "Annonce introuvable" }, { status: 404 });
+      }
+
+      if (listing.status !== "PUBLISHED" && listing.status !== "RESERVED") {
+        return NextResponse.json({ error: "Annonce indisponible" }, { status: 400 });
+      }
+
+      // Calculer les frais de livraison
+      let shippingCostCents = 0;
+      if (shippingMethodId && shipping) {
+        const rate = pickShippingRate(
+          { country: shipping.country, zip: shipping.zip, city: shipping.city },
+          listing.priceCents,
+          shippingMethodId
+        );
+        shippingCostCents = rate.priceCents;
+      }
+
+      const paymentIntent = session.payment_intent as any;
+      const paymentIntentId = paymentIntent?.id || null;
+
+      // Créer la commande marketplace atomiquement
+      const marketplaceOrder = await prisma.$transaction(async (tx) => {
+        // Réserver l'annonce
+        const updated = await tx.listing.updateMany({
+          where: { id: listing.id, status: "PUBLISHED" },
+          data: { status: "RESERVED" },
+        });
+        
+        if (updated.count === 0 && listing.status === "PUBLISHED") {
+          throw new Error("Annonce déjà indisponible");
+        }
+
+        // Créer la commande marketplace
+        const order = await tx.marketplaceOrder.create({
+          data: {
+            listingId: listing.id,
+            buyerId,
+            sellerId: listing.sellerId,
+            amountCents: listing.priceCents + shippingCostCents,
+            currency: listing.currency,
+            paymentMethod: "STRIPE_ONLINE_1X",
+            status: "PAID",
+            stripePaymentIntentId: paymentIntentId,
+            stripeSessionId: sessionId,
+          },
+        });
+
+        // Marquer l'annonce comme vendue
+        await tx.listing.update({
+          where: { id: listing.id },
+          data: { status: "SOLD" },
+        });
+
+        return order;
+      });
+
+      // Générer facture et envoyer emails (similaire à la route marketplace/orders PUT)
+      let mailed = false;
+      let invoiceNumber: string | null = null;
+      try {
+        const { nextInvoiceNumber } = await import("@/lib/invoiceCounter");
+        const { generateInvoicePdf } = await import("@/lib/invoice");
+        const { sendMail } = await import("@/lib/mail");
+        const { buildVioletOrderEmail } = await import("@/lib/emailTemplates");
+        const { notifyAdmins } = await import("@/lib/notifier");
+
+        const prefix = process.env.INVOICE_PREFIX || "LPDW";
+        const startAt = Number(process.env.INVOICE_START_AT || 1500);
+        invoiceNumber = await nextInvoiceNumber("mp_invoice_counter", prefix, startAt);
+
+        const pdf = await generateInvoicePdf({
+          invoiceNumber,
+          company: {
+            name: process.env.COMPANY_NAME || "lespcdewarren.fr",
+            address: process.env.COMPANY_ADDRESS,
+            vat: process.env.COMPANY_VAT,
+          },
+          customer: {
+            name: shipping.name || customerEmail,
+            email: customerEmail,
+          },
+          currency: marketplaceOrder.currency,
+          items: [{ description: `Marketplace: ${listing.title}`, quantity: 1, unitPriceCents: listing.priceCents }],
+          shippingCents: shippingCostCents,
+          notes: "Merci pour votre achat !",
+        });
+
+        const siteUrl = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || "https://lespcdewarren.fr";
+        const html = buildVioletOrderEmail({
+          siteUrl,
+          orderNo: invoiceNumber || String(marketplaceOrder.id),
+          currency: marketplaceOrder.currency,
+          items: [{ name: `Marketplace: ${listing.title}`, quantity: 1, priceCents: listing.priceCents }],
+          subtotalCents: listing.priceCents,
+          shippingCents: shippingCostCents,
+          paymentMethod: "Stripe",
+          supportEmail: process.env.SUPPORT_EMAIL || "contact@lespcdewarren.fr",
+          brandName: "Lespcdewarren",
+        });
+
+        const msgId = await sendMail({
+          to: customerEmail,
+          subject: `Votre reçu ${invoiceNumber}`,
+          html,
+          attachments: [{ filename: `${invoiceNumber}.pdf`, content: pdf, contentType: "application/pdf" }],
+          bcc: process.env.ACCOUNTING_BCC,
+        });
+        mailed = !!msgId;
+
+        await prisma.marketplaceOrder.update({
+          where: { id: marketplaceOrder.id },
+          data: {
+            invoiceNumber,
+            invoiceSentAt: new Date(),
+            invoiceCustomerName: shipping.name || customerEmail,
+            invoiceCustomerAddr1: shipping.addr1,
+            invoiceCustomerZip: shipping.zip,
+            invoiceCustomerCity: shipping.city,
+          },
+        });
+
+        // Notifier le vendeur
+        try {
+          const seller = await prisma.user.findUnique({ where: { id: listing.sellerId } });
+          if (seller?.email) {
+            const { buildNotificationEmail } = await import("@/lib/emailTemplates");
+            const title = "Votre article a été vendu";
+            const amountStr = ((marketplaceOrder.amountCents) / 100).toLocaleString("fr-FR", {
+              minimumFractionDigits: 2,
+            });
+            const htmlSeller = buildNotificationEmail({
+              siteUrl,
+              title,
+              message: `Votre article "${listing.title}" a été vendu pour ${amountStr} ${marketplaceOrder.currency}.`,
+              ctaHref: "/marketplace/seller/dashboard",
+              ctaLabel: "Ouvrir le tableau de bord",
+            });
+            await sendMail({
+              to: seller.email,
+              subject: `${title} – ${listing.title}`,
+              html: htmlSeller,
+            });
+          }
+        } catch {}
+
+        // Notifier les admins
+        notifyAdmins({
+          type: "ORDER_EVENT",
+          title: "Commande marketplace payée",
+          message: `Commande #${invoiceNumber || marketplaceOrder.id} ("${listing.title}") – ${(marketplaceOrder.amountCents / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2 })} ${marketplaceOrder.currency}`,
+          link: "/admin/orders",
+          emailSubject: `Commande marketplace payée #${invoiceNumber || marketplaceOrder.id}`,
+        }).catch(() => {});
+      } catch (err) {
+        console.warn("[mp-invoice-email] échec d'envoi:", err);
+      }
+
+      return NextResponse.json({
+        ok: true,
+        id: marketplaceOrder.id,
+        mailed,
+        invoiceNumber,
+        isMarketplace: true,
+      });
     }
 
     // Session user

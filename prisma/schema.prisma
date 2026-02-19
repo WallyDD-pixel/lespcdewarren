@@ -274,10 +274,12 @@ model MarketplaceOrder {
   sellerId             Int
   amountCents          Int
   currency             String                 @default("EUR")
-  paymentMethod        PaymentMethod          @default(PAYPAL_ONLINE_1X)
+  paymentMethod        PaymentMethod          @default(STRIPE_ONLINE_1X)
   status               MarketplaceOrderStatus @default(PENDING)
-  paypalOrderId        String?
-  paypalCaptureId      String?
+  paypalOrderId        String?                // Conservé pour référence historique
+  paypalCaptureId      String?               // Conservé pour référence historique
+  stripePaymentIntentId String?
+  stripeSessionId       String?
   trackingNumber       String?
   trackingUrl          String?
   createdAt            DateTime               @default(now())
@@ -295,6 +297,8 @@ model MarketplaceOrder {
   listing              Listing                @relation(fields: [listingId], references: [id])
 
   @@index([paypalOrderId])
+  @@index([stripePaymentIntentId])
+  @@index([stripeSessionId])
 }
 
 model Notification {
@@ -386,8 +390,8 @@ enum ListingStatus {
 }
 
 enum PaymentMethod {
-  PAYPAL_ONLINE_1X
-  PAYPAL_ONLINE_4X
+  STRIPE_ONLINE_1X
+  STRIPE_ONLINE_4X
   CB_ONLINE_1X
   CB_ONLINE_4X
   IN_PERSON
