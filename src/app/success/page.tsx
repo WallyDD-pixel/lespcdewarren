@@ -9,11 +9,31 @@ export default function SuccessPage() {
   const searchParams = useSearchParams();
   const provider = searchParams.get("provider") || undefined;
   const token = searchParams.get("token") || undefined; // PayPal returns token (orderId)
+  const sessionId = searchParams.get("session_id") || undefined; // Stripe Checkout retourne session_id
   const clearCart = useCart((s) => s.clear);
 
   useEffect(() => {
     const run = async () => {
-      // PayPal capture
+      // Stripe Checkout : enregistrer la commande côté serveur
+      if (sessionId) {
+        try {
+          const res = await fetch("/api/stripe/checkout-success", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ sessionId }),
+          });
+          const data = await res.json().catch(() => ({}));
+          setOk(res.ok && (data?.ok === true));
+          if (res.ok) {
+            clearCart();
+          }
+        } catch {
+          setOk(false);
+        }
+        return;
+      }
+
+      // PayPal capture (legacy)
       if (provider === "paypal" && token) {
         try {
           const cart = JSON.parse(sessionStorage.getItem("pp:cart") || "[]");
@@ -33,14 +53,15 @@ export default function SuccessPage() {
           sessionStorage.removeItem("pp:cart");
           sessionStorage.removeItem("pp:ship");
         }
-      } else {
-        // Default to ok when redirected here from other flows
-        setOk(true);
-        clearCart();
+        return;
       }
+
+      // Redirection sans session_id ni PayPal (fallback)
+      setOk(true);
+      clearCart();
     };
     run();
-  }, [provider, token, clearCart]);
+  }, [provider, token, sessionId, clearCart]);
 
   return (
     <main className="mx-auto max-w-3xl p-6">

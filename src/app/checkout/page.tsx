@@ -237,482 +237,8 @@ export default function CheckoutPage() {
     return null;
   };
 
-  // ===== PayPal Advanced (Hosted Fields) integration =====
-  // clientToken: null = pas de token ou échec, string = token valide
-  const [clientToken, setClientToken] = useState<string | null>(null);
-  // tokenTried: indique qu'on a tenté de récupérer un token (même en cas d'erreur)
-  const [tokenTried, setTokenTried] = useState(false);
-  const [sdkReady, setSdkReady] = useState(false);
-  const [sdkLoading, setSdkLoading] = useState(false);
-  const [hfLoading, setHfLoading] = useState(false);
-  const [hfReady, setHfReady] = useState(false);
-  const hostedFieldsInstance = useRef<any>(null);
-  const [processing, setProcessing] = useState(false);
-  const [payLaterRendered, setPayLaterRendered] = useState(false);
-  const marketplaceOrderIdRef = useRef<number | null>(null);
-  const [paypalRendered, setPaypalRendered] = useState(false);
-
-  // Preconnect to PayPal domains to speed up SDK load
-  useEffect(() => {
-    const head = document.head;
-    const links: HTMLLinkElement[] = [];
-    const add = (href: string) => {
-      const l = document.createElement("link");
-      l.rel = "preconnect";
-      l.href = href;
-      l.crossOrigin = "anonymous";
-      head.appendChild(l);
-      links.push(l);
-    };
-    add("https://www.paypal.com");
-    add("https://www.paypalobjects.com");
-    return () => { links.forEach((l) => l.remove()); };
-  }, []);
-
-  // Désactivé: génération de client token PayPal avancé.
-  // On utilise uniquement les boutons PayPal standards (Wallet / PayLater).
-  useEffect(() => {
-    setClientToken(null);
-    setTokenTried(true);
-  }, []);
-
-  // Load PayPal SDK une fois qu'on a tenté de récupérer un client token
-  useEffect(() => {
-    // On attend d'avoir essayé de récupérer un token (même si échec),
-    // ainsi les boutons PayPal classiques fonctionnent même sans Hosted Fields.
-    if (!tokenTried) return;
-    if ((window as any).paypal) { setSdkReady(true); return; }
-
-    async function load() {
-      let clientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || "";
-      try {
-        const res = await fetch('/api/public-config', { cache: 'no-store' });
-        const j = await res.json();
-        if (j?.paypalClientId) clientId = j.paypalClientId;
-      } catch {}
-
-      if (!clientId) { console.error("NEXT_PUBLIC_PAYPAL_CLIENT_ID is missing"); setError("Configuration PayPal manquante (client id)"); return; }
-
-      const existing = document.querySelector('script[src^="https://www.paypal.com/sdk/js"]');
-      if (existing) existing.parentElement?.removeChild(existing);
-
-      const script = document.createElement("script");
-      const params = new URLSearchParams({
-        "client-id": clientId,
-        components: "hosted-fields,buttons",
-        intent: "capture",
-        currency: "EUR",
-        locale: "fr_FR",
-        "enable-funding": "paylater",
-        "disable-funding": "card,credit",
-        vault: "false",
-      });
-      script.src = `https://www.paypal.com/sdk/js?${params.toString()}`;
-      script.async = true;
-      // On n'ajoute le client token que si on en a réellement un.
-      if (clientToken) {
-        script.setAttribute("data-client-token", clientToken);
-      }
-
-      setSdkLoading(true);
-      script.onload = () => { setSdkLoading(false); setSdkReady(true); };
-      script.onerror = () => { setSdkLoading(false); setError("Chargement du SDK PayPal échoué."); };
-
-      document.body.appendChild(script);
-    }
-
-    load();
-    return () => {
-      const existing = document.querySelector('script[src^="https://www.paypal.com/sdk/js"]');
-      existing?.parentElement?.removeChild(existing);
-    };
-  }, [clientToken, tokenTried]);
-
-  // Render Hosted Fields when SDK is ready and step is card
-  useEffect(() => {
-    const win: any = window as any;
-    if (step !== "card" || !sdkReady || !win.paypal?.HostedFields) return;
-    if (isMarketplace && !isAuthed) return; // Bloque Hosted Fields pour invités en marketplace
-    if (hostedFieldsInstance.current) return;
-
-    // Rendre les Hosted Fields (paiement par carte via PayPal)
-    console.log("PayPal SDK loaded, rendering Hosted Fields for card payment...");
-
-    setHfLoading(true);
-    setHfReady(false);
-    win.paypal.HostedFields.render({
-      styles: { 
-        ".valid": { color: "#10b981" },
-        ".invalid": { color: "#ef4444" },
-        input: { color: "#fff", fontSize: "16px" },
-      },
-      fields: {
-        number: { selector: "#card-number", placeholder: "4111 1111 1111 1111" },
-        expirationDate: { selector: "#card-expiry", placeholder: "MM/AA" },
-        cvv: { selector: "#card-cvv", placeholder: "CVC" },
-      },
-      createOrder: async () => {
-        if (isMarketplace) {
-          const res = await fetch("/api/marketplace/orders", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              listingId: Number(listingIdParam),
-              method: "PAYPAL_ONLINE",
-              shippingMethodId,
-              shipping: {
-                name: fullName,
-                addr1: (shippingFrom as any).address1,
-                addr2: (shippingFrom as any).address2,
-                zip: (shippingFrom as any).zip,
-                city: (shippingFrom as any).city,
-                country: (shippingFrom as any).country,
-              },
-            }),
-          });
-          const j = await res.json();
-          if (!res.ok || !j?.paypalOrderId) throw new Error(j?.error || "Création commande PayPal échouée");
-          return j.paypalOrderId as string;
-        }
-        // Store classique
-        const payload = {
-          items,
-          shipping: {
-            name: fullName,
-            addr1: (shippingFrom as any).address1,
-            addr2: (shippingFrom as any).address2,
-            zip: (shippingFrom as any).zip,
-            city: (shippingFrom as any).city,
-            country: (shippingFrom as any).country,
-          },
-          shippingMethodId,
-        };
-        const res = await fetch("/api/paypal/create", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        const data = await res.json();
-        if (!res.ok || !data?.id) throw new Error(data.error || "Création commande PayPal échouée");
-        return data.id as string;
-      },
-    })
-      .then((hf: any) => {
-        hostedFieldsInstance.current = hf;
-        setHfLoading(false);
-        setHfReady(true);
-        const containers: Record<string, HTMLElement | null> = {
-          number: document.getElementById("card-number"),
-          expirationDate: document.getElementById("card-expiry"),
-          cvv: document.getElementById("card-cvv"),
-        };
-        hf.on("focus", ({ emittedBy }: any) => { containers[emittedBy]?.classList.add("input-focus"); });
-        hf.on("blur", ({ emittedBy }: any) => { containers[emittedBy]?.classList.remove("input-focus"); });
-        hf.on("validityChange", ({ fields, emittedBy }: any) => {
-          const el = containers[emittedBy];
-          if (!el) return;
-          el.classList.remove("input-error", "input-success");
-          const f = fields[emittedBy];
-          if (f?.isValid) el.classList.add("input-success");
-          else if (f?.isPotentiallyValid === false) el.classList.add("input-error");
-        });
-      })
-      .catch((err: any) => { 
-        console.warn("Hosted Fields non disponibles, utilisation du bouton PayPal standard:", err?.message || "Erreur inconnue"); 
-        setHfLoading(false); 
-        setHfReady(false);
-        // Ne pas afficher d'erreur - le bouton PayPal standard permet quand même le paiement par carte
-      });
-  }, [sdkReady, step, items, fullName, shippingFrom, shippingMethodId, isMarketplace, listingIdParam, isAuthed]);
-
-  // Render PayPal Pay Later button when SDK is ready and step is card
-  useEffect(() => {
-    const win: any = window as any;
-    if (step !== "card" || !sdkReady || !win.paypal?.Buttons || payLaterRendered) return;
-    if (isMarketplace && !isAuthed) return;
-
-    try {
-      const funding = win.paypal.FUNDING?.PAYLATER;
-      const buttons = win.paypal.Buttons({
-        fundingSource: funding,
-        style: { layout: "horizontal", color: "gold", label: "pay" },
-        createOrder: async () => {
-          // Validation des données avant de créer la commande
-          const validationError = validate();
-          if (validationError) {
-            setError(validationError);
-            throw new Error(validationError);
-          }
-
-          if (isMarketplace) {
-            const res = await fetch("/api/marketplace/orders", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                listingId: Number(listingIdParam),
-                method: "PAYPAL_ONLINE",
-                shippingMethodId,
-                shipping: {
-                  name: fullName,
-                  addr1: (shippingFrom as any).address1,
-                  addr2: (shippingFrom as any).address2,
-                  zip: (shippingFrom as any).zip,
-                  city: (shippingFrom as any).city,
-                  country: (shippingFrom as any).country,
-                  phone: (shippingFrom as any).phone,
-                },
-              }),
-            });
-            const j = await res.json();
-            if (!res.ok || !j?.paypalOrderId) throw new Error(j?.error || "Création commande PayPal échouée");
-            return j.paypalOrderId as string;
-          }
-          const payload = {
-            items,
-            shipping: {
-              name: fullName,
-              addr1: (shippingFrom as any).address1,
-              addr2: (shippingFrom as any).address2,
-              zip: (shippingFrom as any).zip,
-              city: (shippingFrom as any).city,
-              country: (shippingFrom as any).country,
-              phone: (shippingFrom as any).phone,
-            },
-            shippingMethodId,
-          };
-          const res = await fetch("/api/paypal/create", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          });
-          const data = await res.json();
-          if (!res.ok || !data?.id) throw new Error(data.error || "Création commande PayPal échouée");
-          return data.id as string;
-        },
-        onApprove: async (data: any) => {
-          const orderId: string | undefined = data?.orderID;
-          if (!orderId) throw new Error("orderId manquant");
-          if (isMarketplace) {
-            const resCap = await fetch("/api/marketplace/orders", {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ listingId: Number(listingIdParam), paypalOrderId: orderId, shippingMethodId, isPayLater: true, shipping: {
-                name: fullName,
-                addr1: (shippingFrom as any).address1,
-                addr2: (shippingFrom as any).address2,
-                zip: (shippingFrom as any).zip,
-                city: (shippingFrom as any).city,
-                country: (shippingFrom as any).country,
-              } }),
-            });
-            if (!resCap.ok) {
-              const j = await resCap.json().catch(() => ({}));
-              setError("Paiement refusé");
-              return;
-            }
-            // Vérification stricte de la réponse pour s'assurer que le paiement est bien validé
-            const result = await resCap.json().catch(() => ({}));
-            if (!result || !result.success) {
-              setError("Paiement refusé");
-              return;
-            }
-            window.location.href = "/success?provider=paypal";
-            return;
-          }
-          const resCap = await fetch("/api/paypal/capture", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              orderId,
-              cart: items,
-              email: userEmail,
-              isPayLater: true,
-              shipping: {
-                name: fullName,
-                addr1: (shippingFrom as any).address1,
-                addr2: (shippingFrom as any).address2,
-                zip: (shippingFrom as any).zip,
-                city: (shippingFrom as any).city,
-                country: (shippingFrom as any).country,
-                phone: (shippingFrom as any).phone,
-              },
-              shippingMethodId,
-            }),
-          });
-          if (!resCap.ok) {
-            const j = await resCap.json().catch(() => ({}));
-            setError("Paiement refusé");
-            return;
-          }
-          const result = await resCap.json().catch(() => ({}));
-          if (!result || !result.success) {
-            setError("Paiement refusé");
-            return;
-          }
-          window.location.href = "/success?provider=paypal";
-        },
-        onCancel: async () => {
-          // L'utilisateur a annulé le paiement
-          console.log("PayPal PayLater cancelled by user");
-        },
-        onError: (err: any) => { 
-          console.error("PayPal PayLater error:", err);
-          setError(err?.message || "Erreur PayPal"); 
-        },
-      });
-
-      // Toujours tenter le render : si le mode n'est pas éligible,
-      // le SDK gère l'état lui-même, mais au moins on ne reste pas sans bouton.
-      buttons.render("#paypal-paylater-button")
-        .then(() => {
-          console.log("PayPal PayLater button rendered successfully");
-          setPayLaterRendered(true);
-        })
-        .catch((err: any) => {
-          console.error("Failed to render PayPal PayLater button:", err);
-        });
-    } catch (err) { 
-      console.error("PayPal PayLater setup error:", err);
-    }
-  }, [sdkReady, step, items, fullName, shippingFrom, shippingMethodId, userEmail, payLaterRendered, isMarketplace, listingIdParam, isAuthed]);
-
-  // Render Standard PayPal button (Wallet) when SDK is ready and step is card
-  useEffect(() => {
-    const win: any = window as any;
-    if (step !== "card" || !sdkReady || !win.paypal?.Buttons || paypalRendered) return;
-    if (isMarketplace && !isAuthed) return;
-
-    try {
-      const funding = win.paypal.FUNDING?.PAYPAL;
-      const buttons = win.paypal.Buttons({
-        fundingSource: funding,
-        style: { layout: "horizontal", color: "gold", label: "paypal" },
-        createOrder: async () => {
-          // Validation des données avant de créer la commande
-          const validationError = validate();
-          if (validationError) {
-            setError(validationError);
-            throw new Error(validationError);
-          }
-
-          if (isMarketplace) {
-            const res = await fetch("/api/marketplace/orders", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                listingId: Number(listingIdParam),
-                method: "PAYPAL_ONLINE",
-                shippingMethodId,
-                shipping: {
-                  name: fullName,
-                  addr1: (shippingFrom as any).address1,
-                  addr2: (shippingFrom as any).address2,
-                  zip: (shippingFrom as any).zip,
-                  city: (shippingFrom as any).city,
-                  country: (shippingFrom as any).country,
-                  phone: (shippingFrom as any).phone,
-                },
-              }),
-            });
-            const j = await res.json();
-            if (!res.ok || !j?.paypalOrderId) throw new Error(j?.error || "Création commande PayPal échouée");
-            return j.paypalOrderId as string;
-          }
-          const payload = {
-            items,
-            shipping: {
-              name: fullName,
-              addr1: (shippingFrom as any).address1,
-              addr2: (shippingFrom as any).address2,
-              zip: (shippingFrom as any).zip,
-              city: (shippingFrom as any).city,
-              country: (shippingFrom as any).country,
-              phone: (shippingFrom as any).phone,
-            },
-            shippingMethodId,
-          };
-          const res = await fetch("/api/paypal/create", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          });
-          const data = await res.json();
-          if (!res.ok || !data?.id) throw new Error(data.error || "Création commande PayPal échouée");
-          return data.id as string;
-        },
-        onApprove: async (data: any) => {
-          const orderId: string | undefined = data?.orderID;
-          if (!orderId) throw new Error("orderId manquant");
-          if (isMarketplace) {
-            const resCap = await fetch("/api/marketplace/orders", {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ listingId: Number(listingIdParam), paypalOrderId: orderId, shippingMethodId, isPayLater: false, shipping: {
-                name: fullName,
-                addr1: (shippingFrom as any).address1,
-                addr2: (shippingFrom as any).address2,
-                zip: (shippingFrom as any).zip,
-                city: (shippingFrom as any).city,
-                country: (shippingFrom as any).country,
-              } }),
-            });
-            if (!resCap.ok) {
-              const j = await resCap.json().catch(() => ({}));
-              throw new Error(j.error || "Capture échouée");
-            }
-            window.location.href = "/success?provider=paypal";
-            return;
-          }
-          const resCap = await fetch("/api/paypal/capture", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              orderId,
-              cart: items,
-              email: userEmail,
-              isPayLater: false,
-              shipping: {
-                name: fullName,
-                addr1: (shippingFrom as any).address1,
-                addr2: (shippingFrom as any).address2,
-                zip: (shippingFrom as any).zip,
-                city: (shippingFrom as any).city,
-                country: (shippingFrom as any).country,
-                phone: (shippingFrom as any).phone,
-              },
-              shippingMethodId,
-            }),
-          });
-          if (!resCap.ok) {
-            const j = await resCap.json().catch(() => ({}));
-            throw new Error(j.error || "Capture échouée");
-          }
-          window.location.href = "/success?provider=paypal";
-        },
-        onCancel: async () => {
-          // L'utilisateur a annulé le paiement
-          console.log("PayPal payment cancelled by user");
-        },
-        onError: (err: any) => { 
-          console.error("PayPal button error:", err);
-          setError(err?.message || "Erreur PayPal"); 
-        },
-      });
-
-      // Toujours tenter le render, même si PayPal indique non-éligible,
-      // pour éviter de se retrouver sans bouton cliquable.
-      buttons.render("#paypal-standard-button")
-        .then(() => {
-          console.log("PayPal standard button rendered successfully");
-          setPaypalRendered(true);
-        })
-        .catch((err: any) => {
-          console.error("Failed to render PayPal button:", err);
-        });
-    } catch (err) { 
-      console.error("PayPal button setup error:", err);
-    }
-  }, [sdkReady, step, items, fullName, shippingFrom, shippingMethodId, userEmail, paypalRendered, isMarketplace, listingIdParam, isAuthed]);
+  // ===== Stripe Checkout (redirection vers Stripe) =====
+  const [stripeLoading, setStripeLoading] = useState(false);
 
   const goToCardStep = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -746,60 +272,72 @@ export default function CheckoutPage() {
     }
   };
 
-  const payWithCard = async () => {
+  const payWithStripe = async () => {
     setError(null);
     if (isMarketplace && !isAuthed) { setError("Connectez-vous pour payer cette annonce."); return; }
-    setProcessing(true);
+    const validationError = validate();
+    if (validationError) return setError(validationError);
+
+    setStripeLoading(true);
     try {
-      const hf = hostedFieldsInstance.current;
-      if (!hf) throw new Error("Formulaire carte non prêt");
+      const shippingPayload = {
+        name: fullName,
+        addr1: (shippingFrom as any).address1,
+        addr2: (shippingFrom as any).address2 || "",
+        zip: (shippingFrom as any).zip,
+        city: (shippingFrom as any).city,
+        country: (shippingFrom as any).country,
+        phone: (shippingFrom as any).phone || "",
+      };
 
-      const submitRes = await hf.submit({ contingencies: ["3D_SECURE"], cardholderName: fullName });
-      const orderId: string | undefined = submitRes?.orderId;
-      if (!orderId) throw new Error("orderId manquant après la validation carte");
-
-      if (isMarketplace) {
-        const resCap = await fetch("/api/marketplace/orders", {
-          method: "PUT",
+      if (isMarketplace && listingIdParam) {
+        const res = await fetch("/api/stripe/marketplace/create-session", {
+          method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ listingId: marketplaceOrderIdRef.current, paypalOrderId: orderId }),
+          body: JSON.stringify({
+            listingId: Number(listingIdParam),
+            shippingMethodId,
+            shipping: shippingPayload,
+          }),
         });
-        if (!resCap.ok) {
-          const j = await resCap.json().catch(() => ({}));
-          throw new Error(j.error || "Capture échouée");
+        const data = await res.json();
+        if (!res.ok) throw new Error(data?.error || "Impossible de créer la session de paiement");
+        if (data?.url) {
+          window.location.href = data.url;
+          return;
         }
-        window.location.href = "/success?provider=paypal";
-        return;
+        throw new Error("URL de paiement manquante");
       }
 
-      // Store: capture + création commande en base
-      const resCap = await fetch("/api/paypal/capture", {
+      const res = await fetch("/api/stripe/create-checkout-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId, cart: items, email: userEmail, shipping: {
-          name: fullName,
-          addr1: (shippingFrom as any).address1,
-          addr2: (shippingFrom as any).address2,
-          zip: (shippingFrom as any).zip,
-          city: (shippingFrom as any).city,
-          country: (shippingFrom as any).country,
-        }, shippingMethodId }),
+        body: JSON.stringify({
+          items,
+          shipping: shippingPayload,
+          shippingMethodId,
+          email: userEmail,
+          isMarketplace: false,
+        }),
       });
-      if (!resCap.ok) {
-        const j = await resCap.json().catch(() => ({}));
-        throw new Error(j.error || "Capture échouée");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Impossible de créer la session de paiement");
+      if (data?.url) {
+        window.location.href = data.url;
+        return;
       }
-      window.location.href = "/success?provider=paypal";
+      throw new Error("URL de paiement manquante");
     } catch (e: any) {
-      setError(e?.message || "Paiement carte échoué");
-      setProcessing(false);
+      setError(e?.message || "Paiement échoué");
+    } finally {
+      setStripeLoading(false);
     }
   };
 
-  // Icônes des cartes acceptées via PayPal
+  // Icônes des cartes acceptées (Stripe)
   const AcceptedCards = () => (
     <div className="flex flex-wrap items-center gap-2 text-xs text-white/70">
-      <span className="mr-1">Cartes acceptées via PayPal:</span>
+      <span className="mr-1">Cartes acceptées (Stripe):</span>
       {/* VISA */}
       <span className="inline-flex items-center rounded-md border border-white/10 bg-black/30 px-1.5 py-1" title="Visa">
         <svg width="36" height="16" viewBox="0 0 36 16" aria-hidden="true" className="-ml-0.5">
@@ -866,9 +404,6 @@ export default function CheckoutPage() {
       </main>
     );
   }
-
-  // Compute disabled state for the card form
-  const fieldsDisabled = !sdkReady || hfLoading || !hfReady;
 
   // Items à afficher dans le résumé
   const itemsView: Array<{ key: string; name: string; quantity: number; priceCents: number }> = isMarketplace
@@ -1200,7 +735,7 @@ export default function CheckoutPage() {
             ) : (
               <div className="card p-5 space-y-3">
                 <h2 className="font-semibold">Paiement</h2>
-                <p className="text-sm text-white/70">Transaction sécurisée via PayPal (3D Secure). Vos données ne quittent pas notre site.</p>
+                <p className="text-sm text-white/70">Transaction sécurisée via Stripe (3D Secure). Vous serez redirigé vers la page de paiement Stripe.</p>
                 <div className="-mt-1"><AcceptedCards /></div>
                 <p className="text-xs text-white/60 mt-1">
                   En cas de problème de paiement, merci de me contacter par email à{" "}
@@ -1209,109 +744,19 @@ export default function CheckoutPage() {
                   <span className="font-medium">@warrenofff</span>.
                 </p>
 
-                {!sdkReady && (
-                  <div className="space-y-3 animate-pulse" aria-hidden>
-                    <div className="h-11 rounded-md bg-white/10" />
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="h-11 rounded-md bg-white/10" />
-                      <div className="h-11 rounded-md bg-white/10" />
-                    </div>
-                    <div className="text-xs text-white/60">
-                      {sdkLoading ? "Chargement du module de paiement..." : "Initialisation..."}
-                    </div>
-                  </div>
-                )}
-
-                {/* Message de chargement si les champs carte sont en cours d'initialisation */}
-                {sdkReady && !hfReady && hfLoading && (
-                  <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-4">
-                    <div className="flex gap-3">
-                      <div className="flex-shrink-0">
-                        <svg className="h-5 w-5 text-blue-400 animate-spin" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
-                        </svg>
-                      </div>
-                      <div className="flex-1">
-                        <h3 className="text-sm font-medium text-blue-300">Initialisation du paiement par carte...</h3>
-                        <p className="mt-1 text-xs text-blue-200/80">
-                          Chargement des champs de paiement sécurisés PayPal.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Card via Hosted Fields - seulement si éligible */}
-                {hfReady && (
-                  <>
-                    <div className={`relative grid gap-3`}>
-                      <label className="text-sm font-medium text-white/80">{"Numéro de carte"}</label>
-                      <div id="card-number" className="input" />
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="text-sm font-medium text-white/80">{"Expiration"}</label>
-                          <div id="card-expiry" className="input" />
-                        </div>
-                        <div>
-                          <label className="text-sm font-medium text-white/80">{"CVC"}</label>
-                          <div id="card-cvv" className="input" />
-                        </div>
-                      </div>
-
-                      <div className="pt-2 flex items-center justify-between gap-3">
-                        <button type="button" onClick={() => setStep("address")} className="btn-secondary">Retour</button>
-                        <button type="button" disabled={processing} onClick={payWithCard} className="btn-primary">
-                          {processing ? "Traitement..." : "Payer maintenant"}
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Separator */}
-                    <div className="relative py-2 text-center">
-                      <div className="absolute inset-0 flex items-center" aria-hidden="true">
-                        <div className="w-full border-t border-white/10"></div>
-                      </div>
-                      <div className="relative inline-block bg-[var(--bg)] px-3 text-xs text-white/60">ou</div>
-                    </div>
-                  </>
-                )}
-
-                {/* Pay in installments with PayPal - EN PREMIER */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm font-medium">Payer en plusieurs fois avec PayPal</div>
-                    <span className="inline-flex items-center rounded-full bg-green-500/20 px-2 py-0.5 text-xs font-medium text-green-400">
-                      Recommandé
-                    </span>
-                  </div>
-                  <div id="paypal-paylater-button" className="min-h-[45px]" />
-                  <p className="text-xs text-white/60">
-                    Payez en 3 ou 4 fois sans frais (selon éligibilité). 
-                    Validation instantanée dans l'espace sécurisé PayPal.
-                  </p>
+                <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                  <button type="button" onClick={() => setStep("address")} className="btn-secondary order-2 sm:order-1">Retour</button>
+                  <button
+                    type="button"
+                    disabled={stripeLoading}
+                    onClick={payWithStripe}
+                    className="btn-primary order-1 sm:order-2"
+                  >
+                    {stripeLoading ? "Redirection vers Stripe..." : "Payer avec Stripe (carte bancaire)"}
+                  </button>
                 </div>
 
-                {/* Separator */}
-                <div className="relative py-2 text-center">
-                  <div className="absolute inset-0 flex items-center" aria-hidden="true">
-                    <div className="w-full border-t border-white/10"></div>
-                  </div>
-                  <div className="relative inline-block bg-[var(--bg)] px-3 text-xs text-white/60">ou</div>
-                </div>
-
-                {/* Pay with PayPal wallet - EN SECOND */}
-                <div className="space-y-2">
-                  <div className="text-sm font-medium">{"Payer avec PayPal"}</div>
-                  <div id="paypal-standard-button" className="min-h-[45px]" />
-                  <p className="text-xs text-white/60">{"Paiement comptant avec votre compte PayPal ou votre carte via PayPal."}</p>
-                  {!hfReady && sdkReady && (
-                    <p className="text-xs text-blue-400 mt-1">
-                      💳 Vous pouvez utiliser votre carte bancaire directement via le bouton PayPal ci-dessus, sans créer de compte PayPal.
-                    </p>
-                  )}
-                </div>
-
-                {error && !error.includes("hosted fields") && <p className="text-sm text-red-400 mt-3">{error}</p>}
+                {error && <p className="text-sm text-red-400 mt-3">{error}</p>}
               </div>
             )
           )}
@@ -1364,7 +809,7 @@ export default function CheckoutPage() {
               <span className="font-semibold">{fmt(grandTotal)}</span>
             </div>
           </div>
-          <p className="text-xs text-gray-500">Paiement sécurisé par PayPal (CB, 3D Secure). Aucun redirection externe.</p>
+          <p className="text-xs text-gray-500">Paiement sécurisé par Stripe (CB, 3D Secure).</p>
         </aside>
       </div>
     </main>
