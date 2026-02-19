@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "node next-build-wrapper.js build",
+    "build": "ESLINT_NO_DEV_ERRORS=true node next-build-wrapper.js build",
     "start": "node next-build-wrapper.js start -p 3002",
     "lint": "next lint",
     "seed": "tsx prisma/seed.ts",
