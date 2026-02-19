@@ -58,10 +58,10 @@ export async function GET(request: Request) {
   const marketOrders = await prisma.marketplaceOrder.count({ where: { status: { in: marketPaidStatuses as any } } });
   const marketRevenueAgg = await prisma.marketplaceOrder.aggregate({ _sum: { amountCents: true }, where: { status: { in: marketPaidStatuses as any } } });
 
-  // Breakdown marketplace frais/part vendeur, uniquement pour PAYPAL_ONLINE (1x et 4x)
+  // Breakdown marketplace frais/part vendeur, uniquement pour les paiements en ligne
   const feePercent = 7; // doit correspondre à la logique de retrait
   const marketRangeOrders = await prisma.marketplaceOrder.findMany({
-    where: { createdAt: { gte: since, lte: until }, status: { in: marketPaidStatuses as any }, paymentMethod: { in: ["PAYPAL_ONLINE_1X", "PAYPAL_ONLINE_4X"] as any } },
+    where: { createdAt: { gte: since, lte: until }, status: { in: marketPaidStatuses as any }, paymentMethod: { in: ["STRIPE_ONLINE_1X", "CB_ONLINE_1X"] as any } },
     select: { amountCents: true, createdAt: true },
   });
 

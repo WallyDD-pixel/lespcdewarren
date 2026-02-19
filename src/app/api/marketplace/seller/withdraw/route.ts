@@ -10,8 +10,8 @@ export async function GET() {
   if (!session.user) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
   const userId = session.user.id;
 
-  // Ne comptabiliser que les paiements en ligne pour les retraits (1x et 4x)
-  const orders = await prisma.marketplaceOrder.findMany({ where: { sellerId: userId, paymentMethod: { in: ["PAYPAL_ONLINE_1X", "PAYPAL_ONLINE_4X"] } } });
+  // Ne comptabiliser que les paiements en ligne pour les retraits
+  const orders = await prisma.marketplaceOrder.findMany({ where: { sellerId: userId, paymentMethod: { in: ["STRIPE_ONLINE_1X", "CB_ONLINE_1X"] } } });
   const totals = orders.reduce(
     (acc: { completed: number; pending: number }, o: { status: string; amountCents: number }) => {
       if (o.status === "COMPLETED") acc.completed += o.amountCents;
@@ -62,8 +62,8 @@ export async function POST(req: NextRequest) {
   if (!amountCents || amountCents <= 0) return NextResponse.json({ error: "Montant invalide" }, { status: 400 });
   if (!paypalEmail || typeof paypalEmail !== "string") return NextResponse.json({ error: "Email PayPal requis" }, { status: 400 });
 
-  // Calculer le solde disponible (COMPLETED uniquement, paiements en ligne 1x et 4x)
-  const orders = await prisma.marketplaceOrder.findMany({ where: { sellerId: userId, paymentMethod: { in: ["PAYPAL_ONLINE_1X", "PAYPAL_ONLINE_4X"] } } });
+  // Calculer le solde disponible (COMPLETED uniquement, paiements en ligne)
+  const orders = await prisma.marketplaceOrder.findMany({ where: { sellerId: userId, paymentMethod: { in: ["STRIPE_ONLINE_1X", "CB_ONLINE_1X"] } } });
   const totals = orders.reduce(
     (acc: { completed: number }, o: { status: string; amountCents: number }) => {
       if (o.status === "COMPLETED") acc.completed += o.amountCents;

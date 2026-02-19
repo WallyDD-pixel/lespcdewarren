@@ -180,7 +180,7 @@ export default function Home() {
               <div className="text-2xl" aria-hidden>💳</div>
               <div>
                 <div className="font-semibold">Paiement sécurisé</div>
-                <div className="text-sm text-white/70">PayPal (CB, 3D Secure) • 4x PayPal</div>
+                <div className="text-sm text-white/70">Stripe (CB, 3D Secure)</div>
                 <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
                   <span className="chip">PayPal</span>
                   <span className="chip">CB / Visa / Mastercard</span>
