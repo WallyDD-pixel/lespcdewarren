@@ -25,11 +25,13 @@ const nextConfig: NextConfig = {
       ext.push("pdfkit");
       config.externals = ext;
 
-      // Injecter un polyfill pour 'self' et 'window' dans le bundle serveur
+      // Injecter un polyfill pour 'self', 'window' et 'document' dans le bundle serveur
+      const documentPolyfill = require.resolve('./src/lib/document-polyfill.js');
       config.plugins.push(
         new webpack.ProvidePlugin({
           self: 'globalThis',
           window: 'globalThis',
+          document: documentPolyfill,
         }),
         new webpack.DefinePlugin({
           'self': 'globalThis',
@@ -44,6 +46,12 @@ const nextConfig: NextConfig = {
               if (typeof globalThis.window === 'undefined') {
                 globalThis.window = globalThis;
               }
+              if (typeof globalThis.document === 'undefined' && typeof document !== 'undefined') {
+                globalThis.document = document;
+              }
+            }
+            if (typeof global !== 'undefined' && typeof global.document === 'undefined' && typeof document !== 'undefined') {
+              global.document = document;
             }
           `,
           raw: true,
