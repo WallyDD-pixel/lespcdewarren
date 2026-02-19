@@ -8,23 +8,15 @@ export default function AdminSettingsPage() {
   const settings = useSWR('/api/admin/settings', fetcher);
   const [saving, setSaving] = useState(false);
   const [savingMaint, setSavingMaint] = useState(false);
-  const [paypalEnv, setPaypalEnv] = useState('sandbox');
-
-  // Mettre à jour l'état local quand les données sont chargées
-  if (settings.data?.settings?.PAYPAL_ENV && paypalEnv !== settings.data.settings.PAYPAL_ENV) {
-    setPaypalEnv(settings.data.settings.PAYPAL_ENV);
-  }
 
   async function saveSettings(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
     const payload = {
-      PAYPAL_ENV: fd.get('PAYPAL_ENV'),
       DISCORD_URL: fd.get('DISCORD_URL'),
-      PAYPAL_SANDBOX_CLIENT_ID: fd.get('PAYPAL_SANDBOX_CLIENT_ID'),
-      PAYPAL_SANDBOX_SECRET: fd.get('PAYPAL_SANDBOX_SECRET'),
-      PAYPAL_LIVE_CLIENT_ID: fd.get('PAYPAL_LIVE_CLIENT_ID'),
-      PAYPAL_LIVE_SECRET: fd.get('PAYPAL_LIVE_SECRET'),
+      STRIPE_SECRET_KEY: fd.get('STRIPE_SECRET_KEY'),
+      STRIPE_PUBLISHABLE_KEY: fd.get('STRIPE_PUBLISHABLE_KEY'),
+      STRIPE_WEBHOOK_SECRET: fd.get('STRIPE_WEBHOOK_SECRET'),
     } as any;
     setSaving(true);
     const res = await fetch('/api/admin/settings', {
@@ -84,45 +76,32 @@ export default function AdminSettingsPage() {
         </button>
       </div>
 
-      {/* Formulaire: intégrations */}
+      {/* Formulaire: intégrations Stripe & Discord */}
       <div className="section-contrast p-4">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Intégrations (PayPal & Discord)</h2>
+          <h2 className="text-lg font-semibold">Intégrations (Stripe & Discord)</h2>
         </div>
         <form onSubmit={saveSettings} className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-2">
-            <label className="block text-sm text-white/70">Environnement PayPal</label>
-            <select 
-              name="PAYPAL_ENV" 
-              value={paypalEnv} 
-              onChange={(e) => setPaypalEnv(e.target.value)}
-              className="input"
-            >
-              <option value="sandbox">Sandbox</option>
-              <option value="live">Live</option>
-            </select>
-          </div>
-          <div className="space-y-2">
+          <div className="space-y-2 md:col-span-2">
             <label className="block text-sm text-white/70">Discord (URL)</label>
-            <input name="DISCORD_URL" defaultValue={settings.data?.settings?.DISCORD_URL || ''} className="input" placeholder="https://discord.gg/xxxxx" />
+            <input name="DISCORD_URL" defaultValue={settings.data?.settings?.DISCORD_URL || ''} className="input w-full" placeholder="https://discord.gg/xxxxx" />
           </div>
 
-          <div className="space-y-2">
-            <label className="block text-sm text-white/70">PayPal Sandbox Client ID</label>
-            <input name="PAYPAL_SANDBOX_CLIENT_ID" defaultValue={settings.data?.settings?.PAYPAL_SANDBOX_CLIENT_ID || ''} className="input" />
+          <div className="space-y-2 md:col-span-2">
+            <label className="block text-sm font-medium text-white/80">Stripe (paiement)</label>
+            <p className="text-xs text-white/60">Clés disponibles dans le tableau de bord Stripe → Développeurs → Clés API. Le secret webhook est utilisé pour les webhooks (optionnel).</p>
           </div>
           <div className="space-y-2">
-            <label className="block text-sm text-white/70">PayPal Sandbox Secret</label>
-            <input name="PAYPAL_SANDBOX_SECRET" defaultValue={settings.data?.settings?.PAYPAL_SANDBOX_SECRET || ''} className="input" />
-          </div>
-
-          <div className="space-y-2">
-            <label className="block text-sm text-white/70">PayPal Live Client ID</label>
-            <input name="PAYPAL_LIVE_CLIENT_ID" defaultValue={settings.data?.settings?.PAYPAL_LIVE_CLIENT_ID || ''} className="input" />
+            <label className="block text-sm text-white/70">Stripe Clé secrète (Secret key)</label>
+            <input type="password" name="STRIPE_SECRET_KEY" defaultValue={settings.data?.settings?.STRIPE_SECRET_KEY || ''} className="input" placeholder="sk_live_..." autoComplete="off" />
           </div>
           <div className="space-y-2">
-            <label className="block text-sm text-white/70">PayPal Live Secret</label>
-            <input name="PAYPAL_LIVE_SECRET" defaultValue={settings.data?.settings?.PAYPAL_LIVE_SECRET || ''} className="input" />
+            <label className="block text-sm text-white/70">Stripe Clé publique (Publishable key)</label>
+            <input type="text" name="STRIPE_PUBLISHABLE_KEY" defaultValue={settings.data?.settings?.STRIPE_PUBLISHABLE_KEY || ''} className="input" placeholder="pk_live_..." />
+          </div>
+          <div className="space-y-2 md:col-span-2">
+            <label className="block text-sm text-white/70">Stripe Webhook Secret (optionnel)</label>
+            <input type="password" name="STRIPE_WEBHOOK_SECRET" defaultValue={settings.data?.settings?.STRIPE_WEBHOOK_SECRET || ''} className="input" placeholder="whsec_..." autoComplete="off" />
           </div>
 
           <div className="md:col-span-2 flex justify-end">

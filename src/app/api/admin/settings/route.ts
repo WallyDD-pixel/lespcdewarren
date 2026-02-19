@@ -3,9 +3,7 @@ import { getSession } from "@/lib/session";
 import { getSettings, setSettings, type SettingKey } from "@/lib/settings";
 
 const PUBLIC_KEYS: SettingKey[] = [
-  "PAYPAL_ENV",
-  "PAYPAL_SANDBOX_CLIENT_ID",
-  "PAYPAL_LIVE_CLIENT_ID",
+  "STRIPE_PUBLISHABLE_KEY",
   "DISCORD_URL",
 ];
 
@@ -13,17 +11,15 @@ export async function GET() {
   const session = await getSession();
   if (!session?.user || session.user.role !== "ADMIN") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const all = await getSettings([
-    "PAYPAL_ENV",
-    "PAYPAL_SANDBOX_CLIENT_ID",
-    "PAYPAL_SANDBOX_SECRET",
-    "PAYPAL_LIVE_CLIENT_ID",
-    "PAYPAL_LIVE_SECRET",
+    "STRIPE_SECRET_KEY",
+    "STRIPE_PUBLISHABLE_KEY",
+    "STRIPE_WEBHOOK_SECRET",
     "DISCORD_URL",
     "MAINTENANCE_MODE",
-  "CONTEST_TITLE",
-  "CONTEST_IMAGE_URL",
-  "CONTEST_BG_COLOR",
-  "CONTEST_FOOTER_TEXT",
+    "CONTEST_TITLE",
+    "CONTEST_IMAGE_URL",
+    "CONTEST_BG_COLOR",
+    "CONTEST_FOOTER_TEXT",
   ]);
   return NextResponse.json({ ok: true, settings: all });
 }
@@ -42,15 +38,9 @@ export async function PUT(req: NextRequest) {
       else (updates as any)[k] = String(v);
     };
 
-    if ("PAYPAL_ENV" in body) {
-      const env = String(body.PAYPAL_ENV).toLowerCase();
-      if (env !== 'sandbox' && env !== 'live') return NextResponse.json({ error: "PAYPAL_ENV doit être 'sandbox' ou 'live'" }, { status: 400 });
-      push("PAYPAL_ENV", env);
-    }
-    if ("PAYPAL_SANDBOX_CLIENT_ID" in body) push("PAYPAL_SANDBOX_CLIENT_ID", body.PAYPAL_SANDBOX_CLIENT_ID);
-    if ("PAYPAL_SANDBOX_SECRET" in body) push("PAYPAL_SANDBOX_SECRET", body.PAYPAL_SANDBOX_SECRET);
-    if ("PAYPAL_LIVE_CLIENT_ID" in body) push("PAYPAL_LIVE_CLIENT_ID", body.PAYPAL_LIVE_CLIENT_ID);
-    if ("PAYPAL_LIVE_SECRET" in body) push("PAYPAL_LIVE_SECRET", body.PAYPAL_LIVE_SECRET);
+    if ("STRIPE_SECRET_KEY" in body) push("STRIPE_SECRET_KEY", body.STRIPE_SECRET_KEY);
+    if ("STRIPE_PUBLISHABLE_KEY" in body) push("STRIPE_PUBLISHABLE_KEY", body.STRIPE_PUBLISHABLE_KEY);
+    if ("STRIPE_WEBHOOK_SECRET" in body) push("STRIPE_WEBHOOK_SECRET", body.STRIPE_WEBHOOK_SECRET);
 
     if ("DISCORD_URL" in body) {
       const raw = (typeof body.DISCORD_URL === 'string' ? body.DISCORD_URL.trim() : String(body.DISCORD_URL || ''));
