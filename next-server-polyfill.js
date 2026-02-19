@@ -32,6 +32,22 @@ g.location = fakeLocation;
 g.window.addEventListener = noop;
 g.window.removeEventListener = noop;
 
+// Définir document sur g aussi (pas seulement sur global)
+if (typeof g.document === 'undefined') {
+  g.document = {
+    createElement: () => fakeEl(),
+    createElementNS: () => fakeEl(),
+    getElementById: () => null,
+    querySelector: () => null,
+    querySelectorAll: () => [],
+    addEventListener: noop,
+    removeEventListener: noop,
+    body: fakeEl(),
+    head: fakeEl(),
+    documentElement: fakeEl(),
+  };
+}
+
 if (typeof global !== 'undefined') {
   if (typeof global.self === 'undefined') global.self = global;
   if (typeof global.window === 'undefined') global.window = global;
