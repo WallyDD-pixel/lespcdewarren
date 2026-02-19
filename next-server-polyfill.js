@@ -33,19 +33,51 @@ g.window.addEventListener = noop;
 g.window.removeEventListener = noop;
 
 // Définir document sur g aussi (pas seulement sur global)
+const fakeDocument = {
+  createElement: () => fakeEl(),
+  createElementNS: () => fakeEl(),
+  getElementById: () => null,
+  querySelector: () => null,
+  querySelectorAll: () => [],
+  addEventListener: noop,
+  removeEventListener: noop,
+  body: fakeEl(),
+  head: fakeEl(),
+  documentElement: fakeEl(),
+};
+
 if (typeof g.document === 'undefined') {
-  g.document = {
-    createElement: () => fakeEl(),
-    createElementNS: () => fakeEl(),
-    getElementById: () => null,
-    querySelector: () => null,
-    querySelectorAll: () => [],
-    addEventListener: noop,
-    removeEventListener: noop,
-    body: fakeEl(),
-    head: fakeEl(),
-    documentElement: fakeEl(),
-  };
+  g.document = fakeDocument;
+}
+
+// Définir document directement sur le scope global aussi
+if (typeof document === 'undefined') {
+  // Utiliser Object.defineProperty pour définir document comme une propriété globale non-configurable
+  try {
+    Object.defineProperty(global, 'document', {
+      value: fakeDocument,
+      writable: false,
+      enumerable: true,
+      configurable: false
+    });
+  } catch (e) {
+    // Si ça échoue, utiliser l'assignation directe
+    global.document = fakeDocument;
+  }
+  
+  // Aussi sur globalThis
+  if (typeof globalThis !== 'undefined') {
+    try {
+      Object.defineProperty(globalThis, 'document', {
+        value: fakeDocument,
+        writable: false,
+        enumerable: true,
+        configurable: false
+      });
+    } catch (e) {
+      globalThis.document = fakeDocument;
+    }
+  }
 }
 
 if (typeof global !== 'undefined') {
