@@ -25,13 +25,12 @@ const nextConfig: NextConfig = {
       ext.push("pdfkit");
       config.externals = ext;
 
-      // Injecter un polyfill pour 'self', 'window' et 'document' dans le bundle serveur
-      const documentPolyfill = require.resolve('./src/lib/document-polyfill.js');
+      // Injecter un polyfill inline pour 'self', 'window' et 'document' dans le bundle serveur
+      // Utilisation d'un polyfill inline pour éviter les problèmes avec Edge Runtime
       config.plugins.push(
         new webpack.ProvidePlugin({
           self: 'globalThis',
           window: 'globalThis',
-          document: documentPolyfill,
         }),
         new webpack.DefinePlugin({
           'self': 'globalThis',
@@ -40,7 +39,33 @@ const nextConfig: NextConfig = {
         new webpack.BannerPlugin({
           banner: `
             (function() {
-              const docPolyfill = require('${documentPolyfill.replace(/\\/g, '\\\\')}');
+              // Polyfill inline pour document (compatible Edge Runtime)
+              const noop = () => {};
+              const fakeEl = () => ({
+                style: {},
+                appendChild: noop,
+                removeChild: noop,
+                setAttribute: noop,
+                addEventListener: noop,
+                removeEventListener: noop,
+                getBoundingClientRect: () => ({ top: 0, left: 0, width: 0, height: 0, bottom: 0, right: 0 }),
+                classList: { add: noop, remove: noop, contains: () => false },
+                parentElement: null,
+                remove: noop,
+              });
+              const docPolyfill = {
+                createElement: () => fakeEl(),
+                createElementNS: () => fakeEl(),
+                getElementById: () => null,
+                querySelector: () => null,
+                querySelectorAll: () => [],
+                addEventListener: noop,
+                removeEventListener: noop,
+                body: fakeEl(),
+                head: fakeEl(),
+                documentElement: fakeEl(),
+              };
+              
               if (typeof globalThis !== 'undefined') {
                 if (typeof globalThis.self === 'undefined') {
                   globalThis.self = globalThis;
@@ -65,26 +90,25 @@ const nextConfig: NextConfig = {
               }
               if (typeof document === 'undefined') {
                 try {
-                  Object.defineProperty(global, 'document', {
-                    value: docPolyfill,
-                    writable: false,
-                    enumerable: true,
-                    configurable: false
-                  });
-                } catch (e) {
-                  global.document = docPolyfill;
-                }
-                if (typeof globalThis !== 'undefined') {
-                  try {
+                  if (typeof global !== 'undefined') {
+                    Object.defineProperty(global, 'document', {
+                      value: docPolyfill,
+                      writable: false,
+                      enumerable: true,
+                      configurable: false
+                    });
+                  }
+                  if (typeof globalThis !== 'undefined') {
                     Object.defineProperty(globalThis, 'document', {
                       value: docPolyfill,
                       writable: false,
                       enumerable: true,
                       configurable: false
                     });
-                  } catch (e) {
-                    globalThis.document = docPolyfill;
                   }
+                } catch (e) {
+                  if (typeof global !== 'undefined') global.document = docPolyfill;
+                  if (typeof globalThis !== 'undefined') globalThis.document = docPolyfill;
                 }
               }
             })();
