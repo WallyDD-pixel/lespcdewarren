@@ -99,6 +99,11 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
+  // ⚠️ Cette route est obsolète - utilisez /api/stripe/checkout-success pour Stripe
+  // Conservée temporairement pour compatibilité avec les anciennes commandes PayPal
+  return NextResponse.json({ error: "Cette route est obsolète. Utilisez Stripe Checkout." }, { status: 410 });
+  
+  /* CODE PAYPAL OBSOLÈTE - DÉSACTIVÉ
   const session = await getSession();
   if (!session.user) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
   const { listingId, paypalOrderId, shippingMethodId, shipping, isPayLater } = await req.json();
@@ -138,7 +143,7 @@ export async function PUT(req: NextRequest) {
         sellerId: listing.sellerId,
         amountCents: listing.priceCents + shippingCostCents,
         currency: listing.currency,
-        paymentMethod: isPayLater ? "PAYPAL_ONLINE_4X" : "PAYPAL_ONLINE_1X",
+        paymentMethod: isPayLater ? "STRIPE_ONLINE_4X" : "STRIPE_ONLINE_1X",
         status: "PAID",
         paypalOrderId,
         paypalCaptureId: captureId,
@@ -175,7 +180,7 @@ export async function PUT(req: NextRequest) {
       items: [{ name: `Marketplace: ${listing.title}`, quantity: 1, priceCents: listing.priceCents }],
       subtotalCents: listing.priceCents,
       shippingCents: shippingCostCents,
-      paymentMethod: 'PayPal',
+      paymentMethod: 'Stripe',
       supportEmail: process.env.SUPPORT_EMAIL || 'contact@lespcdewarren.fr',
       brandName: 'Lespcdewarren',
     });
@@ -202,6 +207,7 @@ export async function PUT(req: NextRequest) {
   notifyAdmins({ type: "ORDER_EVENT", title: "Commande marketplace payée", message: `Commande #${invoiceNumber || order.id} (\"${listing.title}\") – ${(order.amountCents/100).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} ${order.currency}`, link: "/admin/orders", emailSubject: `Commande marketplace payée #${invoiceNumber || order.id}` }).catch(() => {});
 
   return NextResponse.json({ ok: true, mailed, invoiceNumber, orderId: order.id });
+  */
 }
 
 export async function DELETE(req: NextRequest) {
