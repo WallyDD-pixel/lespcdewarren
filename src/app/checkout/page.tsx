@@ -240,6 +240,12 @@ export default function CheckoutPage() {
   // ===== Stripe Checkout (redirection vers Stripe) =====
   const [stripeLoading, setStripeLoading] = useState(false);
 
+  // ===== Paiement sur place =====
+  const [paymentMode, setPaymentMode] = useState<"stripe" | "onsite">("stripe");
+  const [customerInstagram, setCustomerInstagram] = useState("");
+  const [customerSnapchat, setCustomerSnapchat] = useState("");
+  const [onsiteLoading, setOnsiteLoading] = useState(false);
+
   const goToCardStep = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -331,6 +337,50 @@ export default function CheckoutPage() {
       setError(e?.message || "Paiement échoué");
     } finally {
       setStripeLoading(false);
+    }
+  };
+
+  const confirmOnsiteOrder = async () => {
+    setError(null);
+    const err = validate();
+    if (err) return setError(err);
+    setOnsiteLoading(true);
+    try {
+      const shippingPayload = {
+        name: fullName,
+        addr1: (shippingFrom as any).address1,
+        addr2: (shippingFrom as any).address2 || "",
+        zip: (shippingFrom as any).zip,
+        city: (shippingFrom as any).city,
+        country: (shippingFrom as any).country,
+      };
+      const res = await fetch("/api/orders/create-onsite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: items.map((i) => ({
+            productId: i.productId,
+            variantId: i.variantId ?? undefined,
+            quantity: i.quantity,
+          })),
+          shipping: shippingPayload,
+          shippingMethodId,
+          email: userEmail,
+          customerInstagram: customerInstagram.trim() || undefined,
+          customerSnapchat: customerSnapchat.trim() || undefined,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || "Impossible d'enregistrer la commande");
+      if (data?.redirectUrl) {
+        window.location.href = data.redirectUrl;
+        return;
+      }
+      throw new Error("Réponse invalide");
+    } catch (e: any) {
+      setError(e?.message || "Erreur");
+    } finally {
+      setOnsiteLoading(false);
     }
   };
 
@@ -733,28 +783,92 @@ export default function CheckoutPage() {
                 </div>
               </div>
             ) : (
-              <div className="card p-5 space-y-3">
+              <div className="card p-5 space-y-4">
                 <h2 className="font-semibold">Paiement</h2>
-                <p className="text-sm text-white/70">Transaction sécurisée via Stripe (3D Secure). Vous serez redirigé vers la page de paiement Stripe.</p>
-                <div className="-mt-1"><AcceptedCards /></div>
-                <p className="text-xs text-white/60 mt-1">
-                  En cas de problème de paiement, merci de me contacter par email à{" "}
-                  <span className="font-medium">wallydibombepro@gmail.com</span>, sur Instagram{" "}
-                  <span className="font-medium">@warrenoff</span> ou sur Snapchat{" "}
-                  <span className="font-medium">@warrenofff</span>.
-                </p>
 
-                <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                  <button type="button" onClick={() => setStep("address")} className="btn-secondary order-2 sm:order-1">Retour</button>
-                  <button
-                    type="button"
-                    disabled={stripeLoading}
-                    onClick={payWithStripe}
-                    className="btn-primary order-1 sm:order-2"
-                  >
-                    {stripeLoading ? "Redirection vers Stripe..." : "Payer avec Stripe (carte bancaire)"}
-                  </button>
-                </div>
+                {!isMarketplace && (
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMode("stripe")}
+                      className={`px-4 py-2 rounded-lg font-medium transition-colors ${paymentMode === "stripe" ? "bg-[var(--accent)] text-black" : "bg-white/10 text-white/80 hover:bg-white/15"}`}
+                    >
+                      Carte bancaire (Stripe)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentMode("onsite")}
+                      className={`px-4 py-2 rounded-lg font-medium transition-colors ${paymentMode === "onsite" ? "bg-[var(--accent)] text-black" : "bg-white/10 text-white/80 hover:bg-white/15"}`}
+                    >
+                      Paiement sur place
+                    </button>
+                  </div>
+                )}
+
+                {paymentMode === "stripe" ? (
+                  <>
+                    <p className="text-sm text-white/70">Transaction sécurisée via Stripe (3D Secure). Vous serez redirigé vers la page de paiement Stripe.</p>
+                    <div className="-mt-1"><AcceptedCards /></div>
+                    <p className="text-xs text-white/60 mt-1">
+                      En cas de problème de paiement, merci de me contacter par email à{" "}
+                      <span className="font-medium">wallydibombepro@gmail.com</span>, sur Instagram{" "}
+                      <span className="font-medium">@warrenoff</span> ou sur Snapchat{" "}
+                      <span className="font-medium">@warrenofff</span>.
+                    </p>
+                    <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                      <button type="button" onClick={() => setStep("address")} className="btn-secondary order-2 sm:order-1">Retour</button>
+                      <button
+                        type="button"
+                        disabled={stripeLoading}
+                        onClick={payWithStripe}
+                        className="btn-primary order-1 sm:order-2"
+                      >
+                        {stripeLoading ? "Redirection vers Stripe..." : "Payer avec Stripe (carte bancaire)"}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm text-white/80">
+                      Vous pouvez vous déplacer pour payer directement sur place en <strong>espèces</strong> ou par <strong>virement instantané</strong>. Nous vous recontacterons via vos réseaux pour convenir du rendez-vous.
+                    </p>
+                    <div className="rounded-lg bg-white/5 border border-white/10 p-4 space-y-2">
+                      <div className="text-sm font-medium text-white/90">Me contacter</div>
+                      <div className="flex flex-wrap gap-3 text-sm">
+                        <span>Snapchat : <span className="font-semibold text-[var(--accent)]">warren_offf</span></span>
+                        <span>Instagram : <span className="font-semibold text-[var(--accent)]">warrenofff</span></span>
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="text-sm font-medium text-white/90">Vos réseaux (pour vous recontacter)</div>
+                      <input
+                        type="text"
+                        className="input"
+                        placeholder="Votre Instagram (ex: @votrepseudo)"
+                        value={customerInstagram}
+                        onChange={(e) => setCustomerInstagram(e.target.value)}
+                      />
+                      <input
+                        type="text"
+                        className="input"
+                        placeholder="Votre Snapchat (ex: @votrepseudo)"
+                        value={customerSnapchat}
+                        onChange={(e) => setCustomerSnapchat(e.target.value)}
+                      />
+                    </div>
+                    <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                      <button type="button" onClick={() => setStep("address")} className="btn-secondary order-2 sm:order-1">Retour</button>
+                      <button
+                        type="button"
+                        disabled={onsiteLoading}
+                        onClick={confirmOnsiteOrder}
+                        className="btn-primary order-1 sm:order-2"
+                      >
+                        {onsiteLoading ? "Enregistrement..." : "Confirmer la commande (paiement sur place)"}
+                      </button>
+                    </div>
+                  </>
+                )}
 
                 {error && <p className="text-sm text-red-400 mt-3">{error}</p>}
               </div>

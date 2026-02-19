@@ -243,11 +243,16 @@ export function calculateItemTotalCents(items: Array<{ priceCents?: number; quan
 
 export function getShippingRates(address: ShippingAddress, _cartTotalCents: number): ShippingMethod[] {
   const iso = toISO2(address?.country);
-  const region = REGION_TARIFFS.find((r) => r.matcher(iso));
-  if (region) {
-    return [
-      { id: region.id, label: region.label, carrier: "Standard", etaDays: region.etaDays, priceCents: region.priceCents },
-    ];
+  // Retourner tous les tarifs qui matchent le pays (ex. France : Colissimo + Retrait en main propre)
+  const matching = REGION_TARIFFS.filter((r) => r.matcher(iso));
+  if (matching.length > 0) {
+    return matching.map((r) => ({
+      id: r.id,
+      label: r.label,
+      carrier: "Standard",
+      etaDays: r.etaDays,
+      priceCents: r.priceCents,
+    }));
   }
   // Fallback: si non reconnu, appliquer tarif international par défaut
   return [

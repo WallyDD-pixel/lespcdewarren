@@ -10,10 +10,18 @@ export default function SuccessPage() {
   const provider = searchParams.get("provider") || undefined;
   const token = searchParams.get("token") || undefined; // PayPal returns token (orderId)
   const sessionId = searchParams.get("session_id") || undefined; // Stripe Checkout retourne session_id
+  const onsite = searchParams.get("onsite") === "1";
   const clearCart = useCart((s) => s.clear);
 
   useEffect(() => {
     const run = async () => {
+      // Paiement sur place : commande déjà créée, on vide le panier et on affiche le succès
+      if (onsite) {
+        setOk(true);
+        clearCart();
+        return;
+      }
+
       // Stripe Checkout : enregistrer la commande côté serveur
       if (sessionId) {
         try {
@@ -61,12 +69,16 @@ export default function SuccessPage() {
       clearCart();
     };
     run();
-  }, [provider, token, sessionId, clearCart]);
+  }, [provider, token, sessionId, onsite, clearCart]);
 
   return (
     <main className="mx-auto max-w-3xl p-6">
-      <h1 className="text-2xl font-bold mb-4">Paiement réussi</h1>
-      <p>Merci pour votre commande. Vous recevrez un email de confirmation sous peu.</p>
+      <h1 className="text-2xl font-bold mb-4">{onsite ? "Commande enregistrée" : "Paiement réussi"}</h1>
+      <p>
+        {onsite
+          ? "Votre commande en paiement sur place a bien été enregistrée. Nous vous recontacterons via vos réseaux sociaux (Instagram / Snapchat) pour convenir du rendez-vous et du paiement en espèces ou par virement instantané."
+          : "Merci pour votre commande. Vous recevrez un email de confirmation sous peu."}
+      </p>
       {ok === false && (
         <p className="mt-2 text-sm text-red-400">Note: la confirmation n'a pas pu créer la commande automatiquement. Vérifiez votre email.</p>
       )}

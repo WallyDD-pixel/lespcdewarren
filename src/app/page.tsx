@@ -191,8 +191,33 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Remplacement des catégories rapides par une carte rectangulaire (vidéo) */}
-      <section className="mx-auto max-w-7xl px-6 py-10">
+      {/* Nouveau : Paiement sur place + remise en main propre */}
+      <section className="container pt-4 pb-6">
+        <Link href="/panier" className="block">
+          <div className="section-contrast p-5 md:p-6 rounded-xl border border-[var(--accent)]/30 hover:border-[var(--accent)]/50 transition-colors">
+            <div className="flex flex-wrap items-start gap-4">
+              <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-[var(--accent)]/20 text-2xl shrink-0" aria-hidden>
+                🤝
+              </div>
+              <div className="min-w-0 flex-1">
+                <span className="chip bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/40">Nouveau</span>
+                <h2 className="text-xl md:text-2xl font-bold mt-2 tracking-tight">
+                  Paiement sur place et remise en main propre
+                </h2>
+                <p className="mt-2 text-white/85">
+                  Vous pouvez maintenant payer directement sur place : <strong>remise du PC contre le paiement</strong> en espèces ou par virement instantané. Plus facile et plus rapide pour les clients d’Île-de-France et ceux qui sont à proximité.
+                </p>
+                <p className="mt-3 text-sm text-[var(--accent)] font-medium">
+                  Choisir « Paiement sur place » au checkout →
+                </p>
+              </div>
+            </div>
+          </div>
+        </Link>
+      </section>
+
+  {/* Remplacement des catégories rapides par une carte rectangulaire (vidéo) */}
+  <section className="mx-auto max-w-7xl px-6 py-10">
         <div className="relative rounded-2xl overflow-hidden bg-white/[0.03] border border-white/10">
           <div className="relative w-full aspect-[21/9] md:aspect-[16/6]">
             <video
