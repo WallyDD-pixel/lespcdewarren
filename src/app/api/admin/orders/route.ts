@@ -19,6 +19,7 @@ export async function GET(req: NextRequest) {
     take: 100,
     select: {
       id: true,
+      invoiceNumber: true,
       email: true,
       amountCents: true,
       currency: true,
@@ -26,6 +27,7 @@ export async function GET(req: NextRequest) {
       createdAt: true,
       shippingZip: true,
       shippingCity: true,
+      invoiceNotes: true,
     },
   });
 

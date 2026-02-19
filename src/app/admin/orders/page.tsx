@@ -20,6 +20,24 @@ type OrderStatusKey = keyof typeof STATUS_MAP;
 
 const statusFr = (s: string) => STATUS_MAP[(s as OrderStatusKey)] ?? s;
 
+/** Détecte une commande "paiement sur place" et extrait le contact client (réseaux) depuis invoiceNotes */
+function parseOnsiteFromNotes(invoiceNotes: string | null | undefined): { isOnsite: boolean; contactLine?: string; instagram?: string; snapchat?: string } {
+  if (!invoiceNotes || typeof invoiceNotes !== "string") return { isOnsite: false };
+  const isOnsite = invoiceNotes.includes("Paiement sur place");
+  if (!isOnsite) return { isOnsite: false };
+  const contactMatch = invoiceNotes.match(/Contact client:\s*(.+?)(?:\s*$|\s*\.)/);
+  const contactLine = contactMatch ? contactMatch[1].trim() : undefined;
+  let instagram: string | undefined;
+  let snapchat: string | undefined;
+  if (contactLine) {
+    const ig = contactLine.match(/Instagram:\s*([^\s·]+)/i);
+    const snap = contactLine.match(/Snapchat:\s*([^\s·]+)/i);
+    if (ig) instagram = ig[1].trim();
+    if (snap) snapchat = snap[1].trim();
+  }
+  return { isOnsite: true, contactLine, instagram, snapchat };
+}
+
 const ORDER_STATUSES: OrderStatusKey[] = [
   "PENDING",
   "PAYMENT_RECEIVED",
@@ -35,6 +53,7 @@ export default function AdminOrdersPage() {
   const [showCanceled, setShowCanceled] = useState(false);
   const orders = ((data?.orders ?? []) as Array<{
     id: number;
+    invoiceNumber?: string | null;
     email: string;
     amountCents: number;
     currency: string;
@@ -42,6 +61,7 @@ export default function AdminOrdersPage() {
     createdAt: string;
     shippingZip?: string | null;
     shippingCity?: string | null;
+    invoiceNotes?: string | null;
   }>);
   const filteredOrders = showCanceled ? orders : orders.filter(o => o.status !== "CANCELED");
   // Chiffre d'affaires total hors commandes annulées
@@ -70,20 +90,6 @@ export default function AdminOrdersPage() {
   const [detail, setDetail] = useState<any | null>(null);
 
   const onUpdate = async (id: number, payload: any) => {
-  const onDelete = async (id: number) => {
-    if (!window.confirm("Supprimer définitivement cette commande ?")) return;
-    setUpdatingId(id);
-    try {
-      const res = await fetch(`/api/admin/orders/${id}/delete`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Erreur de suppression");
-      await mutate();
-    } catch (e) {
-      console.error(e);
-      alert("Impossible de supprimer la commande");
-    } finally {
-      setUpdatingId(null);
-    }
-  };
     setUpdatingId(id);
     try {
       const res = await fetch(`/api/admin/orders/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -163,6 +169,9 @@ export default function AdminOrdersPage() {
                 <td className="px-4 py-3 font-mono">{publicRefFrom((o as any).invoiceNumber ? (o as any).invoiceNumber : o.id, o.createdAt)}</td>
                 <td className="px-4 py-3">{o.email}</td>
                 <td className="px-4 py-3">{formatCurrency(o.amountCents, o.currency)}</td>
+                <td className="px-4 py-3 text-white/80">
+                  {(o as any).invoiceNotes && String((o as any).invoiceNotes).includes("Paiement sur place") ? "Sur place" : "Stripe"}
+                </td>
                 <td className="px-4 py-3">{new Date(o.createdAt).toLocaleString("fr-FR")}</td>
                 <td className="px-4 py-3">
                   <select
@@ -206,7 +215,9 @@ export default function AdminOrdersPage() {
             </div>
             <div className="p-5 grid gap-4 max-h-[75vh] overflow-auto">
               {detailLoading && <div className="text-white/70 text-sm">Chargement...</div>}
-              {!detailLoading && detail && (
+              {!detailLoading && detail && (() => {
+                  const onsite = parseOnsiteFromNotes(detail.invoiceNotes);
+                  return (
                 <>
                   <div className="grid gap-2 sm:grid-cols-2">
                     <div className="rounded-md border border-white/10 bg-black/20 p-3 text-sm">
@@ -225,10 +236,50 @@ export default function AdminOrdersPage() {
                       <div className="text-white/60">Client</div>
                       <div className="font-medium break-all">{detail.email}</div>
                     </div>
+                    <div className="rounded-md border border-white/10 bg-black/20 p-3 text-sm sm:col-span-2">
+                      <div className="text-white/60">Mode de paiement</div>
+                      <div className="font-medium">
+                        {onsite.isOnsite ? "Paiement sur place (remise en main propre)" : "Stripe (carte bancaire)"}
+                      </div>
+                    </div>
                   </div>
 
+                  {onsite.isOnsite && (
+                    <div className="rounded-md border border-[var(--accent)]/30 bg-[var(--accent)]/5 p-4">
+                      <h4 className="font-semibold mb-2 text-sm flex items-center gap-2">
+                        <span aria-hidden>🤝</span> Réservation remise en main propre
+                      </h4>
+                      <p className="text-sm text-white/80 mb-3">
+                        Le client a choisi de payer sur place (espèces ou virement instantané) et de récupérer le PC en main propre. Pas d&apos;expédition — convenez du rendez-vous via les réseaux ci-dessous.
+                      </p>
+                      <div className="text-sm font-medium text-white/90 mb-1">Contact client (pour prise de rendez-vous)</div>
+                      <div className="flex flex-wrap gap-4 text-sm">
+                        {onsite.instagram && (
+                          <span className="inline-flex items-center gap-1">
+                            <span className="text-white/60">Instagram</span>
+                            <span className="font-mono text-[var(--accent)]">{onsite.instagram}</span>
+                          </span>
+                        )}
+                        {onsite.snapchat && (
+                          <span className="inline-flex items-center gap-1">
+                            <span className="text-white/60">Snapchat</span>
+                            <span className="font-mono text-[var(--accent)]">{onsite.snapchat}</span>
+                          </span>
+                        )}
+                        {!onsite.instagram && !onsite.snapchat && onsite.contactLine && (
+                          <span className="text-white/70">{onsite.contactLine}</span>
+                        )}
+                        {!onsite.instagram && !onsite.snapchat && !onsite.contactLine && (
+                          <span className="text-white/50">Non renseigné</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="rounded-md border border-white/10 bg-black/20 p-3">
-                    <h4 className="font-semibold mb-2 text-sm">Adresse de livraison</h4>
+                    <h4 className="font-semibold mb-2 text-sm">
+                      {onsite.isOnsite ? "Adresse du client / point de remise" : "Adresse de livraison"}
+                    </h4>
                     {detail.shipping?.addr1 ? (
                       <div className="text-sm text-white/90 space-y-0.5">
                         {detail.shipping?.name && <div className="font-medium">{detail.shipping.name}</div>}
@@ -242,9 +293,10 @@ export default function AdminOrdersPage() {
                     )}
                   </div>
 
-                  {/* Tracking controls */}
+                  {/* Tracking : masqué pour remise en main propre, affiché pour expédition */}
+                  {!onsite.isOnsite && (
                   <div className="rounded-md border border-white/10 bg-black/20 p-3 grid gap-3">
-                    <h4 className="font-semibold">Suivi d'expédition</h4>
+                    <h4 className="font-semibold">Suivi d&apos;expédition</h4>
                     <div className="grid sm:grid-cols-2 gap-3">
                       <div>
                         <label className="block text-xs text-white/60 mb-1">Numéro de suivi</label>
@@ -266,6 +318,12 @@ export default function AdminOrdersPage() {
                       </div>
                     )}
                   </div>
+                  )}
+                  {onsite.isOnsite && (
+                    <div className="rounded-md border border-white/10 bg-black/20 p-3 text-sm text-white/60">
+                      Remise en main propre — pas de suivi d&apos;expédition.
+                    </div>
+                  )}
 
                   <div>
                     <h4 className="font-semibold mb-2">Articles</h4>
@@ -291,7 +349,8 @@ export default function AdminOrdersPage() {
                     </ul>
                   </div>
                 </>
-              )}
+                  );
+                })()}
             </div>
           </div>
         </div>

@@ -33,11 +33,15 @@ export async function GET(_: Request, ctx: { params: Promise<{ id: string }> }) 
       currency: true,
       status: true,
       createdAt: true,
+      invoiceNumber: true,
+      invoiceNotes: true,
       shippingName: true,
       shippingAddr1: true,
       shippingAddr2: true,
       shippingZip: true,
       shippingCity: true,
+      shippingMethod: true,
+      shippingCostCents: true,
       trackingNumber: true,
       trackingUrl: true,
       items: {
@@ -57,6 +61,8 @@ export async function GET(_: Request, ctx: { params: Promise<{ id: string }> }) 
     currency: o.currency,
     status: o.status,
     createdAt: o.createdAt,
+    invoiceNumber: o.invoiceNumber ?? null,
+    invoiceNotes: o.invoiceNotes ?? null,
     shipping: {
       name: o.shippingName,
       addr1: o.shippingAddr1,
@@ -64,6 +70,8 @@ export async function GET(_: Request, ctx: { params: Promise<{ id: string }> }) 
       zip: o.shippingZip,
       city: o.shippingCity,
     },
+    shippingMethod: o.shippingMethod ?? null,
+    shippingCostCents: o.shippingCostCents ?? 0,
     trackingNumber: o.trackingNumber ?? null,
     trackingUrl: o.trackingUrl ?? null,
     items: o.items.map((it) => ({
