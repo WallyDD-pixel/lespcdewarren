@@ -20,9 +20,17 @@ export ESLINT_NO_DEV_ERRORS=true
 npm run build 2>&1 | tee build.log
 
 echo "✅ Vérification du build..."
-if grep -qi "error\|failed" build.log; then
+# Chercher des erreurs réelles (pas juste le mot "error" dans "Skipping validation")
+if grep -qiE "(Error:|Failed|✗|Build error|Build failed)" build.log; then
     echo "❌ Erreurs détectées dans le build :"
-    tail -50 build.log | grep -i "error\|failed"
+    grep -iE "(Error:|Failed|✗|Build error|Build failed)" build.log | tail -20
+    exit 1
+fi
+
+# Vérifier que le build s'est terminé avec succès
+if ! grep -q "Creating an optimized production build" build.log || ! grep -q "Generating static pages" build.log; then
+    echo "❌ Le build semble incomplet"
+    tail -30 build.log
     exit 1
 fi
 
