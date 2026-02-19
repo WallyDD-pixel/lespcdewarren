@@ -143,7 +143,7 @@ export async function PUT(req: NextRequest) {
         sellerId: listing.sellerId,
         amountCents: listing.priceCents + shippingCostCents,
         currency: listing.currency,
-        paymentMethod: isPayLater ? "STRIPE_ONLINE_4X" : "STRIPE_ONLINE_1X",
+        paymentMethod: "STRIPE_ONLINE_1X",
         status: "PAID",
         paypalOrderId,
         paypalCaptureId: captureId,

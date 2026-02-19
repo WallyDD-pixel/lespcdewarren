@@ -391,9 +391,7 @@ enum ListingStatus {
 
 enum PaymentMethod {
   STRIPE_ONLINE_1X
-  STRIPE_ONLINE_4X
   CB_ONLINE_1X
-  CB_ONLINE_4X
   IN_PERSON
 }
 
