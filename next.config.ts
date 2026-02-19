@@ -3,7 +3,7 @@ import webpack from "webpack";
 
 const nextConfig: NextConfig = {
   images: { unoptimized: true },
-  eslint: { ignoreDuringBuilds: true },
+  // eslint: { ignoreDuringBuilds: true }, // Déprécié dans Next.js 15+
   // Next 15: packages à garder externes côté serveur
   serverExternalPackages: ['pdfkit'],
   webpack: (config, { isServer, webpack }) => {
