@@ -39,23 +39,58 @@ const nextConfig: NextConfig = {
         }),
         new webpack.BannerPlugin({
           banner: `
-            if (typeof globalThis !== 'undefined') {
-              if (typeof globalThis.self === 'undefined') {
-                globalThis.self = globalThis;
+            (function() {
+              const docPolyfill = require('${documentPolyfill.replace(/\\/g, '\\\\')}');
+              if (typeof globalThis !== 'undefined') {
+                if (typeof globalThis.self === 'undefined') {
+                  globalThis.self = globalThis;
+                }
+                if (typeof globalThis.window === 'undefined') {
+                  globalThis.window = globalThis;
+                }
+                if (typeof globalThis.document === 'undefined') {
+                  globalThis.document = docPolyfill;
+                }
               }
-              if (typeof globalThis.window === 'undefined') {
-                globalThis.window = globalThis;
+              if (typeof global !== 'undefined') {
+                if (typeof global.self === 'undefined') {
+                  global.self = global;
+                }
+                if (typeof global.window === 'undefined') {
+                  global.window = global;
+                }
+                if (typeof global.document === 'undefined') {
+                  global.document = docPolyfill;
+                }
               }
-              if (typeof globalThis.document === 'undefined' && typeof document !== 'undefined') {
-                globalThis.document = document;
+              if (typeof document === 'undefined') {
+                try {
+                  Object.defineProperty(global, 'document', {
+                    value: docPolyfill,
+                    writable: false,
+                    enumerable: true,
+                    configurable: false
+                  });
+                } catch (e) {
+                  global.document = docPolyfill;
+                }
+                if (typeof globalThis !== 'undefined') {
+                  try {
+                    Object.defineProperty(globalThis, 'document', {
+                      value: docPolyfill,
+                      writable: false,
+                      enumerable: true,
+                      configurable: false
+                    });
+                  } catch (e) {
+                    globalThis.document = docPolyfill;
+                  }
+                }
               }
-            }
-            if (typeof global !== 'undefined' && typeof global.document === 'undefined' && typeof document !== 'undefined') {
-              global.document = document;
-            }
+            })();
           `,
           raw: true,
-          entryOnly: false,
+          entryOnly: true,
         })
       );
     }
