@@ -185,9 +185,17 @@ export default function AdminOrdersPage() {
                     ))}
                   </select>
                 </td>
-                <td className="px-4 py-3 flex gap-2">
+                <td className="px-4 py-3 flex gap-2 flex-wrap">
                   {/* Voir opens a modal */}
                   <button className="btn-ghost" onClick={() => openDetail(o.id)}>Voir</button>
+                  <a
+                    href={`/api/admin/invoices/store/${o.id}/pdf`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn-ghost"
+                  >
+                    Générer la facture
+                  </a>
                   {o.status !== "CANCELED" && o.status !== "REFUNDED" && (
                     <button className="btn-ghost text-red-300" disabled={updatingId === o.id} onClick={() => onUpdate(o.id, { status: "CANCELED" })}>Annuler</button>
                   )}
