@@ -37,10 +37,15 @@ export async function PUT(req: NextRequest) {
       else if (v == null) (updates as any)[k] = null;
       else (updates as any)[k] = String(v);
     };
+    // Ne pas écraser les clés secrètes avec une chaîne vide (sinon on perd la valeur et on retombe sur .env, souvent en test)
+    const setIfNonEmpty = (k: SettingKey, v: unknown) => {
+      const s = typeof v === "string" ? v.trim() : v == null ? "" : String(v);
+      if (s !== "") (updates as any)[k] = s;
+    };
 
-    if ("STRIPE_SECRET_KEY" in body) push("STRIPE_SECRET_KEY", body.STRIPE_SECRET_KEY);
+    if ("STRIPE_SECRET_KEY" in body) setIfNonEmpty("STRIPE_SECRET_KEY", body.STRIPE_SECRET_KEY);
     if ("STRIPE_PUBLISHABLE_KEY" in body) push("STRIPE_PUBLISHABLE_KEY", body.STRIPE_PUBLISHABLE_KEY);
-    if ("STRIPE_WEBHOOK_SECRET" in body) push("STRIPE_WEBHOOK_SECRET", body.STRIPE_WEBHOOK_SECRET);
+    if ("STRIPE_WEBHOOK_SECRET" in body) setIfNonEmpty("STRIPE_WEBHOOK_SECRET", body.STRIPE_WEBHOOK_SECRET);
 
     if ("DISCORD_URL" in body) {
       const raw = (typeof body.DISCORD_URL === 'string' ? body.DISCORD_URL.trim() : String(body.DISCORD_URL || ''));

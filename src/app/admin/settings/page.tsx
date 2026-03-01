@@ -90,10 +90,24 @@ export default function AdminSettingsPage() {
           <div className="space-y-2 md:col-span-2">
             <label className="block text-sm font-medium text-white/80">Stripe (paiement)</label>
             <p className="text-xs text-white/60">Clés disponibles dans le tableau de bord Stripe → Développeurs → Clés API. Le secret webhook est utilisé pour les webhooks (optionnel).</p>
+            <p className="text-xs text-amber-200/90 mt-1">Pour le mode <strong>live</strong>, les deux clés doivent être les clés <strong>live</strong> (sk_live_... et pk_live_...). Si vous changez la clé secrète, saisissez-la en entier (elle n’est pas réaffichée).</p>
+            {((settings.data?.settings?.STRIPE_PUBLISHABLE_KEY) || (settings.data?.settings?.STRIPE_SECRET_KEY)) && (
+              <p className="text-xs mt-1 space-x-3">
+                {settings.data?.settings?.STRIPE_PUBLISHABLE_KEY && (
+                  <span>Clé publique : <span className={String(settings.data.settings.STRIPE_PUBLISHABLE_KEY).startsWith("pk_live_") ? "text-green-400" : "text-amber-400"}>{String(settings.data.settings.STRIPE_PUBLISHABLE_KEY).startsWith("pk_live_") ? "Live" : "Test"}</span></span>
+                )}
+                {settings.data?.settings?.STRIPE_SECRET_KEY && (
+                  <span>Clé secrète : <span className={String(settings.data.settings.STRIPE_SECRET_KEY).startsWith("sk_live_") ? "text-green-400" : "text-amber-400"}>{String(settings.data.settings.STRIPE_SECRET_KEY).startsWith("sk_live_") ? "Live" : "Test"}</span></span>
+                )}
+                {(settings.data?.settings?.STRIPE_PUBLISHABLE_KEY?.startsWith("pk_live_") && !settings.data?.settings?.STRIPE_SECRET_KEY?.startsWith("sk_live_")) && (
+                  <span className="block text-amber-300 mt-0.5">→ Le moyen de paiement restera en mode test tant que la clé secrète n’est pas en live (sk_live_...).</span>
+                )}
+              </p>
+            )}
           </div>
           <div className="space-y-2">
             <label className="block text-sm text-white/70">Stripe Clé secrète (Secret key)</label>
-            <input type="password" name="STRIPE_SECRET_KEY" defaultValue={settings.data?.settings?.STRIPE_SECRET_KEY || ''} className="input" placeholder="sk_live_..." autoComplete="off" />
+            <input type="password" name="STRIPE_SECRET_KEY" defaultValue={settings.data?.settings?.STRIPE_SECRET_KEY || ''} className="input" placeholder="sk_live_... (obligatoire pour le mode live)" autoComplete="off" />
           </div>
           <div className="space-y-2">
             <label className="block text-sm text-white/70">Stripe Clé publique (Publishable key)</label>
