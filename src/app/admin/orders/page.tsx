@@ -1,6 +1,6 @@
 "use client";
 import useSWR from "swr";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
@@ -39,6 +39,95 @@ function parseOnsiteFromNotes(invoiceNotes: string | null | undefined): { isOnsi
     if (snap) snapchat = snap[1].trim();
   }
   return { isOnsite: true, contactLine, phone, instagram, snapchat };
+}
+
+/** Bloc contact client pour paiement sur place : affichage + champ téléphone modifiable (pour anciennes commandes sans tél) */
+function OnsiteContactBlock({
+  detail,
+  onsite,
+  onUpdate,
+  onSaved,
+}: {
+  detail: any;
+  onsite: { phone?: string; instagram?: string; snapchat?: string; contactLine?: string };
+  onUpdate: (id: number, payload: any) => Promise<void>;
+  onSaved: (newNotes: string) => void;
+}) {
+  const phoneInputRef = useRef<HTMLInputElement>(null);
+  const [savingPhone, setSavingPhone] = useState(false);
+
+  const savePhone = async () => {
+    const raw = phoneInputRef.current?.value?.trim() ?? "";
+    const parts: string[] = [];
+    if (raw) parts.push(`Tél: ${raw}`);
+    if (onsite.instagram) parts.push(`Instagram: ${onsite.instagram}`);
+    if (onsite.snapchat) parts.push(`Snapchat: ${onsite.snapchat}`);
+    const newContactLine = parts.join(" · ") || "Non renseigné";
+    const currentNotes = detail.invoiceNotes || "";
+    const newInvoiceNotes = currentNotes.includes("Contact client:")
+      ? currentNotes.replace(/Contact client:\s*.+$/, `Contact client: ${newContactLine}`)
+      : currentNotes.trim() + (currentNotes ? " " : "") + `Contact client: ${newContactLine}`;
+    setSavingPhone(true);
+    try {
+      await onUpdate(detail.id, { invoiceNotes: newInvoiceNotes });
+      onSaved(newInvoiceNotes);
+    } catch {
+      // error already handled in onUpdate
+    } finally {
+      setSavingPhone(false);
+    }
+  };
+
+  return (
+    <div className="rounded-md border border-[var(--accent)]/30 bg-[var(--accent)]/5 p-4">
+      <h4 className="font-semibold mb-2 text-sm flex items-center gap-2">
+        <span aria-hidden>🤝</span> Réservation remise en main propre
+      </h4>
+      <p className="text-sm text-white/80 mb-3">
+        Le client a choisi de payer sur place (espèces ou virement instantané) et de récupérer le PC en main propre. Pas d&apos;expédition — convenez du rendez-vous via les réseaux ci-dessous.
+      </p>
+      <div className="text-sm font-medium text-white/90 mb-1">Contact client (pour prise de rendez-vous)</div>
+      <div className="flex flex-wrap items-center gap-4 text-sm mb-3">
+        {onsite.phone && (
+          <span className="inline-flex items-center gap-1">
+            <span className="text-white/60">Téléphone</span>
+            <span className="font-mono text-[var(--accent)]">📞 {onsite.phone}</span>
+          </span>
+        )}
+        {onsite.instagram && (
+          <span className="inline-flex items-center gap-1">
+            <span className="text-white/60">Instagram</span>
+            <span className="font-mono text-[var(--accent)]">{onsite.instagram}</span>
+          </span>
+        )}
+        {onsite.snapchat && (
+          <span className="inline-flex items-center gap-1">
+            <span className="text-white/60">Snapchat</span>
+            <span className="font-mono text-[var(--accent)]">{onsite.snapchat}</span>
+          </span>
+        )}
+        {!onsite.phone && !onsite.instagram && !onsite.snapchat && onsite.contactLine && (
+          <span className="text-white/70">{onsite.contactLine}</span>
+        )}
+        {!onsite.phone && !onsite.instagram && !onsite.snapchat && !onsite.contactLine && (
+          <span className="text-white/50">Non renseigné</span>
+        )}
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="text-xs text-white/70">Téléphone (ajouter ou modifier)</label>
+        <input
+          ref={phoneInputRef}
+          type="tel"
+          defaultValue={onsite.phone ?? ""}
+          placeholder="06 12 34 56 78"
+          className="rounded border border-white/20 bg-black/30 px-3 py-1.5 text-sm w-40"
+        />
+        <button type="button" onClick={savePhone} disabled={savingPhone} className="btn-ghost text-xs py-1.5">
+          {savingPhone ? "Enregistrement…" : "Enregistrer le numéro"}
+        </button>
+      </div>
+    </div>
+  );
 }
 
 const ORDER_STATUSES: OrderStatusKey[] = [
@@ -256,41 +345,12 @@ export default function AdminOrdersPage() {
                   </div>
 
                   {onsite.isOnsite && (
-                    <div className="rounded-md border border-[var(--accent)]/30 bg-[var(--accent)]/5 p-4">
-                      <h4 className="font-semibold mb-2 text-sm flex items-center gap-2">
-                        <span aria-hidden>🤝</span> Réservation remise en main propre
-                      </h4>
-                      <p className="text-sm text-white/80 mb-3">
-                        Le client a choisi de payer sur place (espèces ou virement instantané) et de récupérer le PC en main propre. Pas d&apos;expédition — convenez du rendez-vous via les réseaux ci-dessous.
-                      </p>
-                      <div className="text-sm font-medium text-white/90 mb-1">Contact client (pour prise de rendez-vous)</div>
-                      <div className="flex flex-wrap gap-4 text-sm">
-                        {onsite.phone && (
-                          <span className="inline-flex items-center gap-1">
-                            <span className="text-white/60">Téléphone</span>
-                            <span className="font-mono text-[var(--accent)]">📞 {onsite.phone}</span>
-                          </span>
-                        )}
-                        {onsite.instagram && (
-                          <span className="inline-flex items-center gap-1">
-                            <span className="text-white/60">Instagram</span>
-                            <span className="font-mono text-[var(--accent)]">{onsite.instagram}</span>
-                          </span>
-                        )}
-                        {onsite.snapchat && (
-                          <span className="inline-flex items-center gap-1">
-                            <span className="text-white/60">Snapchat</span>
-                            <span className="font-mono text-[var(--accent)]">{onsite.snapchat}</span>
-                          </span>
-                        )}
-                        {!onsite.phone && !onsite.instagram && !onsite.snapchat && onsite.contactLine && (
-                          <span className="text-white/70">{onsite.contactLine}</span>
-                        )}
-                        {!onsite.phone && !onsite.instagram && !onsite.snapchat && !onsite.contactLine && (
-                          <span className="text-white/50">Non renseigné</span>
-                        )}
-                      </div>
-                    </div>
+                    <OnsiteContactBlock
+                      detail={detail}
+                      onsite={onsite}
+                      onUpdate={onUpdate}
+                      onSaved={(newNotes) => { setDetail((d: any) => d ? { ...d, invoiceNotes: newNotes } : d); }}
+                    />
                   )}
 
                   <div className="rounded-md border border-white/10 bg-black/20 p-3">

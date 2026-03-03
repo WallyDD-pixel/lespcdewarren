@@ -97,7 +97,7 @@ export async function PATCH(request: Request, ctx: { params: Promise<{ id: strin
   if (Number.isNaN(id)) return NextResponse.json({ error: "Bad id" }, { status: 400 });
 
   const body = await request.json();
-  const { status, shippingZip, shippingCity, trackingNumber, trackingUrl } = body as { status?: OrderStatusKey; shippingZip?: string | null; shippingCity?: string | null; trackingNumber?: string | null; trackingUrl?: string | null };
+  const { status, shippingZip, shippingCity, trackingNumber, trackingUrl, invoiceNotes: invoiceNotesBody } = body as { status?: OrderStatusKey; shippingZip?: string | null; shippingCity?: string | null; trackingNumber?: string | null; trackingUrl?: string | null; invoiceNotes?: string | null };
 
   try {
     const data: any = {};
@@ -106,6 +106,7 @@ export async function PATCH(request: Request, ctx: { params: Promise<{ id: strin
     if (shippingCity !== undefined) data.shippingCity = shippingCity;
     if (trackingNumber !== undefined) data.trackingNumber = trackingNumber;
     if (trackingUrl !== undefined) data.trackingUrl = trackingUrl;
+    if (invoiceNotesBody !== undefined) data.invoiceNotes = invoiceNotesBody;
 
     const updated = await prisma.order.update({
       where: { id },
