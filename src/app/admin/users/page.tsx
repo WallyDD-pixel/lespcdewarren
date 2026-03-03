@@ -6,7 +6,7 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 export default function AdminUsersPage() {
   const { data, mutate, isLoading } = useSWR("/api/admin/users", fetcher, { refreshInterval: 30000 });
-  const users = (data?.users ?? []) as Array<{ id: number; email: string; name?: string | null; role: string; createdAt: string }>;
+  const users = (data?.users ?? []) as Array<{ id: number; email: string; name?: string | null; role: string; createdAt: string; phone?: string | null }>;
 
   const updateRole = async (id: number, role: "USER" | "ADMIN") => {
     await fetch(`/api/admin/users/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ role }) });
@@ -68,17 +68,19 @@ export default function AdminUsersPage() {
               <th className="px-4 py-3">#</th>
               <th className="px-4 py-3">Email</th>
               <th className="px-4 py-3">Nom</th>
+              <th className="px-4 py-3">Téléphone</th>
               <th className="px-4 py-3">Rôle</th>
               <th className="px-4 py-3">Inscription</th>
             </tr>
           </thead>
           <tbody>
-            {isLoading && <tr><td colSpan={5} className="px-4 py-4">Chargement…</td></tr>}
+            {isLoading && <tr><td colSpan={6} className="px-4 py-4">Chargement…</td></tr>}
             {users.map((u) => (
               <tr key={u.id} className="border-t border-white/10">
                 <td className="px-4 py-3">{u.id}</td>
                 <td className="px-4 py-3 break-all">{u.email}</td>
                 <td className="px-4 py-3">{u.name || "—"}</td>
+                <td className="px-4 py-3">{u.phone ? <span className="font-mono">📞 {u.phone}</span> : "—"}</td>
                 <td className="px-4 py-3">
                   <select className="rounded border border-white/10 bg-black/40 px-2 py-1" value={u.role} onChange={(e) => updateRole(u.id, e.target.value as any)}>
                     <option value="USER">Utilisateur</option>
@@ -88,7 +90,7 @@ export default function AdminUsersPage() {
                 <td className="px-4 py-3">{new Date(u.createdAt).toLocaleString("fr-FR")}</td>
               </tr>
             ))}
-            {users.length === 0 && !isLoading && <tr><td colSpan={5} className="px-4 py-4">Aucun utilisateur</td></tr>}
+            {users.length === 0 && !isLoading && <tr><td colSpan={6} className="px-4 py-4">Aucun utilisateur</td></tr>}
           </tbody>
         </table>
       </div>

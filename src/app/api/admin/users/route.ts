@@ -9,8 +9,27 @@ import bcrypt from "bcryptjs";
 export async function GET() {
   const session = await getSession();
   if (session.user?.role !== "ADMIN") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const users = await prisma.user.findMany({ orderBy: { createdAt: "desc" }, select: { id: true, email: true, name: true, role: true, createdAt: true } });
-  return NextResponse.json({ users });
+  const users = await prisma.user.findMany({
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      role: true,
+      createdAt: true,
+      profile: { select: { phone: true } },
+    },
+  });
+  return NextResponse.json({
+    users: users.map((u) => ({
+      id: u.id,
+      email: u.email,
+      name: u.name,
+      role: u.role,
+      createdAt: u.createdAt,
+      phone: u.profile?.phone ?? null,
+    })),
+  });
 }
 
 export async function POST(req: Request) {
