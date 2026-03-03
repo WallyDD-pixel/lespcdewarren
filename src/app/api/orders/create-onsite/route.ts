@@ -121,6 +121,7 @@ export async function POST(req: NextRequest) {
     );
 
     const contactParts: string[] = [];
+    if (shipping?.phone && String(shipping.phone).trim()) contactParts.push(`Tél: ${String(shipping.phone).trim()}`);
     if (customerInstagram) contactParts.push(`Instagram: ${customerInstagram.trim()}`);
     if (customerSnapchat) contactParts.push(`Snapchat: ${customerSnapchat.trim()}`);
     const contactLine = contactParts.length ? contactParts.join(" · ") : "Non renseigné";

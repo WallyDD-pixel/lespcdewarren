@@ -353,6 +353,7 @@ export default function CheckoutPage() {
         zip: (shippingFrom as any).zip,
         city: (shippingFrom as any).city,
         country: (shippingFrom as any).country,
+        phone: (shippingFrom as any).phone || "",
       };
       const res = await fetch("/api/orders/create-onsite", {
         method: "POST",

@@ -20,22 +20,25 @@ type OrderStatusKey = keyof typeof STATUS_MAP;
 
 const statusFr = (s: string) => STATUS_MAP[(s as OrderStatusKey)] ?? s;
 
-/** Détecte une commande "paiement sur place" et extrait le contact client (réseaux) depuis invoiceNotes */
-function parseOnsiteFromNotes(invoiceNotes: string | null | undefined): { isOnsite: boolean; contactLine?: string; instagram?: string; snapchat?: string } {
+/** Détecte une commande "paiement sur place" et extrait le contact client (tél, réseaux) depuis invoiceNotes */
+function parseOnsiteFromNotes(invoiceNotes: string | null | undefined): { isOnsite: boolean; contactLine?: string; phone?: string; instagram?: string; snapchat?: string } {
   if (!invoiceNotes || typeof invoiceNotes !== "string") return { isOnsite: false };
   const isOnsite = invoiceNotes.includes("Paiement sur place");
   if (!isOnsite) return { isOnsite: false };
   const contactMatch = invoiceNotes.match(/Contact client:\s*(.+?)(?:\s*$|\s*\.)/);
   const contactLine = contactMatch ? contactMatch[1].trim() : undefined;
+  let phone: string | undefined;
   let instagram: string | undefined;
   let snapchat: string | undefined;
   if (contactLine) {
+    const tel = contactLine.match(/Tél:\s*([^\s·]+)/i);
     const ig = contactLine.match(/Instagram:\s*([^\s·]+)/i);
     const snap = contactLine.match(/Snapchat:\s*([^\s·]+)/i);
+    if (tel) phone = tel[1].trim();
     if (ig) instagram = ig[1].trim();
     if (snap) snapchat = snap[1].trim();
   }
-  return { isOnsite: true, contactLine, instagram, snapchat };
+  return { isOnsite: true, contactLine, phone, instagram, snapchat };
 }
 
 const ORDER_STATUSES: OrderStatusKey[] = [
@@ -262,6 +265,12 @@ export default function AdminOrdersPage() {
                       </p>
                       <div className="text-sm font-medium text-white/90 mb-1">Contact client (pour prise de rendez-vous)</div>
                       <div className="flex flex-wrap gap-4 text-sm">
+                        {onsite.phone && (
+                          <span className="inline-flex items-center gap-1">
+                            <span className="text-white/60">Téléphone</span>
+                            <span className="font-mono text-[var(--accent)]">📞 {onsite.phone}</span>
+                          </span>
+                        )}
                         {onsite.instagram && (
                           <span className="inline-flex items-center gap-1">
                             <span className="text-white/60">Instagram</span>
@@ -274,10 +283,10 @@ export default function AdminOrdersPage() {
                             <span className="font-mono text-[var(--accent)]">{onsite.snapchat}</span>
                           </span>
                         )}
-                        {!onsite.instagram && !onsite.snapchat && onsite.contactLine && (
+                        {!onsite.phone && !onsite.instagram && !onsite.snapchat && onsite.contactLine && (
                           <span className="text-white/70">{onsite.contactLine}</span>
                         )}
-                        {!onsite.instagram && !onsite.snapchat && !onsite.contactLine && (
+                        {!onsite.phone && !onsite.instagram && !onsite.snapchat && !onsite.contactLine && (
                           <span className="text-white/50">Non renseigné</span>
                         )}
                       </div>
