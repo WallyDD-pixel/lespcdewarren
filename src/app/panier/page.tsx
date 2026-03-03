@@ -51,7 +51,7 @@ export default function PanierPage() {
           <p className="mb-4">Votre panier est vide.</p>
           <div className="flex gap-3">
             <Link href="/" className="btn-primary">Retour à l'accueil</Link>
-            <Link href="/catalogue" className="btn-secondary">Voir le catalogue</Link>
+            <Link href="/" className="btn-secondary">Voir les produits</Link>
           </div>
         </div>
       )}
@@ -115,7 +115,7 @@ export default function PanierPage() {
             <p className="text-xs text-gray-500 mb-4">Taxes et frais de livraison calculés au paiement.</p>
             <button onClick={goCheckout} disabled={!items.length} className="w-full btn-primary disabled:opacity-50">Continuer</button>
             <button onClick={clear} className="w-full mt-3 px-3 py-2 border border-white/10 rounded hover:bg:white/5">Vider le panier</button>
-            <Link href="/catalogue" className="w-full mt-3 inline-flex justify-center px-3 py-2 border border-white/10 rounded hover:bg-white/5">Continuer mes achats</Link>
+            <Link href="/" className="w-full mt-3 inline-flex justify-center px-3 py-2 border border-white/10 rounded hover:bg-white/5">Continuer mes achats</Link>
           </aside>
         </div>
       )}

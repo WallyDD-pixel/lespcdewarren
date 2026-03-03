@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useCart } from "@/store/cart";
 import { usePathname } from "next/navigation";
+import { SHOW_DEVIS, SHOW_CATALOGUE } from "@/lib/featureFlags";
 
 type UserInfo = { email: string; role: "USER" | "ADMIN" } | undefined;
 
@@ -227,8 +228,11 @@ export default function Header({ user }: { user?: UserInfo extends undefined ? n
           <ul className="hidden md:flex items-center gap-6 text-white/80">
             { [
               { href: "/", label: "ACCUEIL" },
-              { href: "/devis", label: "CONFIGURER MON PC" },
-              { href: "/catalogue", label: "CATALOGUE" },
+              { href: "/marketplace", label: "MARKETPLACE" },
+              { href: "/faq", label: "FAQ" },
+              { href: "/panier", label: "PANIER" },
+              ...(SHOW_DEVIS ? [{ href: "/devis", label: "CONFIGURER MON PC" }] : []),
+              ...(SHOW_CATALOGUE ? [{ href: "/catalogue", label: "CATALOGUE" }] : []),
             ].map((l) => (
               <li key={l.href} className="relative group">
                 <Link
@@ -399,8 +403,11 @@ export default function Header({ user }: { user?: UserInfo extends undefined ? n
             </div>
             <nav className="px-5 py-4 space-y-1">
               <Link href="/" onClick={() => setOpen(false)} className={`block rounded-lg px-4 py-3 text-base font-medium hover:bg-white/5 active:bg-white/10 ${isActive("/") ? "text-[var(--accent)] font-semibold bg-white/[0.03]" : ""}`}>ACCUEIL</Link>
-              <Link href="/devis" onClick={() => setOpen(false)} className={`block rounded-lg px-4 py-3 text-base font-medium hover:bg-white/5 active:bg-white/10 ${isActive("/devis") ? "text-[var(--accent)] font-semibold bg-white/[0.03]" : ""}`}>CONFIGURER MON PC</Link>
-              <Link href="/catalogue" onClick={() => setOpen(false)} className={`block rounded-lg px-4 py-3 text-base font-medium hover:bg-white/5 active:bg-white/10 ${isActive("/catalogue") ? "text-[var(--accent)] font-semibold bg-white/[0.03]" : ""}`}>CATALOGUE</Link>
+              <Link href="/marketplace" onClick={() => setOpen(false)} className={`block rounded-lg px-4 py-3 text-base font-medium hover:bg-white/5 active:bg-white/10 ${isActive("/marketplace") ? "text-[var(--accent)] font-semibold bg-white/[0.03]" : ""}`}>MARKETPLACE</Link>
+              <Link href="/faq" onClick={() => setOpen(false)} className={`block rounded-lg px-4 py-3 text-base font-medium hover:bg-white/5 active:bg-white/10 ${isActive("/faq") ? "text-[var(--accent)] font-semibold bg-white/[0.03]" : ""}`}>FAQ</Link>
+              <Link href="/panier" onClick={() => setOpen(false)} className={`block rounded-lg px-4 py-3 text-base font-medium hover:bg-white/5 active:bg-white/10 ${isActive("/panier") ? "text-[var(--accent)] font-semibold bg-white/[0.03]" : ""}`}>PANIER</Link>
+              {SHOW_DEVIS && <Link href="/devis" onClick={() => setOpen(false)} className={`block rounded-lg px-4 py-3 text-base font-medium hover:bg-white/5 active:bg-white/10 ${isActive("/devis") ? "text-[var(--accent)] font-semibold bg-white/[0.03]" : ""}`}>CONFIGURER MON PC</Link>}
+              {SHOW_CATALOGUE && <Link href="/catalogue" onClick={() => setOpen(false)} className={`block rounded-lg px-4 py-3 text-base font-medium hover:bg-white/5 active:bg-white/10 ${isActive("/catalogue") ? "text-[var(--accent)] font-semibold bg-white/[0.03]" : ""}`}>CATALOGUE</Link>}
 
               {user ? (
                 <div className="mt-5 pt-5 border-t border-white/10 space-y-1">

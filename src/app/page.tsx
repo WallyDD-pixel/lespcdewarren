@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useCart } from "@/store/cart";
 import ProductCard, { type ProductCardData } from "@/components/ProductCard";
 import ListingCard, { type ListingCardData } from "@/components/ListingCard";
+import { SHOW_DEVIS, SHOW_CATALOGUE } from "@/lib/featureFlags";
 
 const TRUSTPILOT_PROFILE_URL = process.env.NEXT_PUBLIC_TRUSTPILOT_PROFILE_URL || "https://fr.trustpilot.com/review/lespcdewarren.fr";
 
@@ -260,9 +261,11 @@ export default function Home() {
       <section className="container pb-16">
         <div className="mb-6 flex items-center justify-between">
           <h2 className="text-xl font-semibold">Les PC de Warren</h2>
-          <Link href="/catalogue?pc=1" className="text-sm text-[var(--accent)] hover:underline">
-            Voir tout
-          </Link>
+          {SHOW_CATALOGUE && (
+            <Link href="/catalogue?pc=1" className="text-sm text-[var(--accent)] hover:underline">
+              Voir tout
+            </Link>
+          )}
         </div>
         {/* Grille 2 lignes, 6 colonnes sur desktop */}
   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3 gap-4">
@@ -365,7 +368,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Configurer votre propre PC */}
+      {/* Configurer votre propre PC (masqué si SHOW_DEVIS = false) */}
+      {SHOW_DEVIS && (
       <section className="container pb-20">
         <div className="section-contrast p-6 md:p-8">
           <div className="grid gap-8 md:grid-cols-2 items-center md:items-start flex-col md:flex-row">
@@ -378,7 +382,7 @@ export default function Home() {
               </p>
               <div className="mt-5 flex flex-wrap items-center gap-3">
                 <Link href="/devis" className="btn-primary">Configurer maintenant</Link>
-                <Link href="/catalogue" className="btn-ghost">Voir le catalogue</Link>
+                {SHOW_CATALOGUE && <Link href="/catalogue" className="btn-ghost">Voir le catalogue</Link>}
               </div>
             </div>
             {/* Right steps: grille responsive */}
@@ -402,6 +406,7 @@ export default function Home() {
           </div>
         </div>
       </section>
+      )}
 
       {/* Avis internes */}
       <section className="container pb-20">

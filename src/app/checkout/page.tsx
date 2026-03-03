@@ -449,7 +449,7 @@ export default function CheckoutPage() {
       <main className="container py-10">
         <div className="card p-6">
           <p>Votre panier est vide.</p>
-          <div className="mt-4"><Link className="btn-primary" href="/catalogue">Voir le catalogue</Link></div>
+          <div className="mt-4"><Link className="btn-primary" href="/">Retour à l&apos;accueil</Link></div>
         </div>
       </main>
     );

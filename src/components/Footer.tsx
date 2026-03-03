@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
+import { SHOW_DEVIS, SHOW_CATALOGUE } from "@/lib/featureFlags";
 
 async function DiscordChip() {
   try {
@@ -52,15 +53,16 @@ export default function Footer() {
           </div>
 
           {/* Columns */}
+          {(SHOW_CATALOGUE || SHOW_DEVIS) && (
           <div>
             <div className="text-sm font-semibold mb-3">Catalogue</div>
             <ul className="space-y-2 text-sm text-white/70">
-              <li><Link href="/catalogue" className="hover:underline">Tous les produits</Link></li>
-              <li><Link href="/devis" className="hover:underline">PC sur mesure</Link></li>
-              <li><Link href="#" className="hover:underline">PC Gamer</Link></li>
-              <li><Link href="#" className="hover:underline">Composants</Link></li>
+              {SHOW_CATALOGUE && <li><Link href="/catalogue" className="hover:underline">Tous les produits</Link></li>}
+              {SHOW_DEVIS && <li><Link href="/devis" className="hover:underline">PC sur mesure</Link></li>}
+              {SHOW_CATALOGUE && <><li><Link href="#" className="hover:underline">PC Gamer</Link></li><li><Link href="#" className="hover:underline">Composants</Link></li></>}
             </ul>
           </div>
+          )}
 
           <div>
             <div className="text-sm font-semibold mb-3">Support</div>
@@ -85,7 +87,7 @@ export default function Footer() {
           <div>
             <div className="text-sm font-semibold mb-3">À propos</div>
             <ul className="space-y-2 text-sm text-white/70">
-              <li><Link href="/devis" className="hover:underline">Devis PC</Link></li>
+              {SHOW_DEVIS && <li><Link href="/devis" className="hover:underline">Devis PC</Link></li>}
               <li><Link href="#" className="hover:underline">Notre équipe</Link></li>
               <li><Link href="#" className="hover:underline">Partenariats</Link></li>
               <li><Link href="#" className="hover:underline">Mentions légales</Link></li>

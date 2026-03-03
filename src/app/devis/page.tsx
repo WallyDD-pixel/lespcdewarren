@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCart } from "@/store/cart";
+import { SHOW_CATALOGUE, SHOW_DEVIS } from "@/lib/featureFlags";
 
 // Types from /api/products
 type ApiProduct = {
@@ -387,6 +389,7 @@ function constraintChips(c: Constraints): string[] {
 }
 
 export default function DevisPage() {
+  const router = useRouter();
   const [products, setProducts] = useState<ApiProduct[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [openSlot, setOpenSlot] = useState<SlotKey | null>(null);
@@ -396,6 +399,12 @@ export default function DevisPage() {
   const [tier, setTier] = useState<Partial<Record<SlotKey, "all" | "budget" | "mid" | "high">>>({});
   const [showIncompat, setShowIncompat] = useState(false);
   const add = useCart((s) => s.add);
+
+  useEffect(() => {
+    if (!SHOW_DEVIS) router.replace("/");
+  }, [router]);
+
+  if (!SHOW_DEVIS) return null;
 
   // Nouveau: état de recomputation locale pour afficher un chargement lors du filtrage
   const [recomputing, setRecomputing] = useState<Partial<Record<SlotKey, boolean>>>({});
@@ -600,7 +609,7 @@ export default function DevisPage() {
         </div>
         <div className="flex gap-2 shrink-0">
           <button onClick={clearAll} className="btn-ghost">Réinitialiser</button>
-          <Link href="/catalogue" className="btn-ghost">Parcourir tout</Link>
+          <Link href={SHOW_CATALOGUE ? "/catalogue" : "/"} className="btn-ghost">Parcourir tout</Link>
         </div>
       </div>
 

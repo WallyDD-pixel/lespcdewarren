@@ -2,8 +2,10 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useCart } from "@/store/cart";
+import { SHOW_CATALOGUE } from "@/lib/featureFlags";
 
 type Product = {
   id: number;
@@ -49,6 +51,7 @@ function RamIcon({ className = "h-4 w-4" }: { className?: string }) {
 const iconForIndex = (i: number) => (i === 0 ? <CpuIcon className="h-4 w-4 mt-0.5" /> : i === 1 ? <GpuIcon className="h-4 w-4 mt-0.5" /> : <RamIcon className="h-4 w-4 mt-0.5" />);
 
 export default function CataloguePage() {
+  const router = useRouter();
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [q, setQ] = useState("");
@@ -58,6 +61,12 @@ export default function CataloguePage() {
   const [page, setPage] = useState(1);
   const pageSize = 12;
   const add = useCart((s) => s.add);
+
+  useEffect(() => {
+    if (!SHOW_CATALOGUE) router.replace("/");
+  }, [router]);
+
+  if (!SHOW_CATALOGUE) return null;
 
   // Lire le paramètre pc=1 au chargement
   useEffect(() => {
