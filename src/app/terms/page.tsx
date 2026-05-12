@@ -1,40 +1,85 @@
-import React from "react";
+import type { Metadata } from "next";
+import Link from "next/link";
+import LegalPageShell, { LegalSectionTitle } from "@/components/legal/LegalPageShell";
+
+export const metadata: Metadata = {
+  title: "Conditions générales d'utilisation — lespcdewarren",
+  description: "CGU du site LesPCdeWarren (Walref).",
+};
 
 export default function TermsPage() {
   return (
-    <main className="max-w-3xl mx-auto p-6 bg-white rounded-lg shadow-md text-gray-900">
-      <h1 className="text-2xl font-bold mb-4 text-blue-600">Conditions d’utilisation – Klipr</h1>
-      <p><strong>Dernière mise à jour :</strong> 23 octobre 2025</p>
-      <p>Bienvenue sur Klipr !<br />
-      En utilisant notre site, vous acceptez les présentes Conditions d’utilisation.<br />
-      Veuillez les lire attentivement avant d’utiliser le service.</p>
-      <h2 className="text-lg font-semibold mt-6 text-blue-600">1. Objet du site</h2>
-      <p>LesPCdeWarren est une plateforme permettant aux utilisateurs de découvrir, commander ou partager des produits informatiques.<br />
-      Le site ne diffuse pas directement de vidéos, mais peut rediriger vers des plateformes externes (Trustpilot, Google Maps, etc.).</p>
-      <h2 className="text-lg font-semibold mt-6 text-blue-600">2. Utilisation du site</h2>
-      <ul className="list-disc ml-6">
-        <li>Avoir au moins 13 ans pour utiliser LesPCdeWarren ;</li>
-        <li>Utiliser le site conformément aux lois applicables ;</li>
-        <li>Ne pas publier, partager ou promouvoir de contenu illégal, haineux, ou violant les droits d’auteur.</li>
+    <LegalPageShell
+      title="Conditions générales d'utilisation"
+      intro={
+        <>
+          <p className="text-white/70">
+            <strong className="text-white/85">Éditeur :</strong> Walref — LesPCdeWarren —{" "}
+            <a href="mailto:warren.lespcdewarren@gmail.com">warren.lespcdewarren@gmail.com</a>
+          </p>
+          <p className="mt-2">
+            <strong className="text-white/80">Dernière mise à jour :</strong> 12 mai 2026
+          </p>
+        </>
+      }
+    >
+      <p>
+        L&apos;utilisation du site <strong>lespcdewarren</strong> (ci-après « le Site ») implique l&apos;acceptation des présentes conditions générales d&apos;utilisation. Si vous n&apos;acceptez pas ces conditions, veuillez ne pas utiliser le Site.
+      </p>
+
+      <LegalSectionTitle>1. Objet</LegalSectionTitle>
+      <p>
+        Le Site permet de consulter une offre de matériel informatique et services associés, de créer un compte, de passer commande et d&apos;utiliser les fonctionnalités proposées par Walref. Les ventes sont régies par les{" "}
+        <Link href="/cgv">conditions générales de vente (CGV)</Link>.
+      </p>
+
+      <LegalSectionTitle>2. Accès au Site</LegalSectionTitle>
+      <p>
+        Walref s&apos;efforce d&apos;assurer l&apos;accessibilité du Site 24h/24 et 7j/7, sous réserve des opérations de maintenance et des cas de force majeure ou événements hors de son contrôle raisonnable. L&apos;accès peut nécessiter une connexion Internet et un équipement compatible ; les frais de télécommunication restent à votre charge.
+      </p>
+
+      <LegalSectionTitle>3. Compte utilisateur</LegalSectionTitle>
+      <p>
+        L&apos;accès à certaines fonctions nécessite la création d&apos;un compte avec une <strong>adresse e-mail</strong> et un <strong>mot de passe</strong>. Vous vous engagez à fournir des informations exactes et à jour, à préserver la confidentialité de vos identifiants et à notifier Walref en cas d&apos;utilisation non autorisée de votre compte. Walref peut suspendre ou supprimer un compte en cas de manquement grave aux présentes CGU ou à la loi.
+      </p>
+
+      <LegalSectionTitle>4. Comportement des utilisateurs</LegalSectionTitle>
+      <p>Il est notamment interdit :</p>
+      <ul>
+        <li>d&apos;utiliser le Site de manière frauduleuse ou pour porter atteinte aux droits de tiers ;</li>
+        <li>de tenter d&apos;accéder de façon non autorisée aux systèmes, données ou comptes d&apos;autres utilisateurs ;</li>
+        <li>de diffuser des contenus illicites, diffamatoires ou contraires aux bonnes mœurs.</li>
       </ul>
-      <h2 className="text-lg font-semibold mt-6 text-blue-600">3. Comptes et sécurité</h2>
-      <p>L’inscription peut se faire via Google.<br />
-      Vous êtes responsable de la confidentialité de vos identifiants et de toute activité effectuée sous votre compte.</p>
-      <h2 className="text-lg font-semibold mt-6 text-blue-600">4. Contenu et droits</h2>
-      <p>Les contenus affichés sur le site appartiennent à leurs créateurs ou plateformes d’origine.<br />
-      LesPCdeWarren n’héberge aucun contenu vidéo.<br />
-      Les utilisateurs sont responsables du respect des droits de propriété intellectuelle.</p>
-      <h2 className="text-lg font-semibold mt-6 text-blue-600">5. Paiements et commandes</h2>
-      <p>Les commandes sont gérées via des partenaires de paiement.<br />
-      LesPCdeWarren ne garantit pas le versement d’une récompense en dehors des conditions prévues par le vendeur.</p>
-      <h2 className="text-lg font-semibold mt-6 text-blue-600">6. Limitation de responsabilité</h2>
-      <p>LesPCdeWarren est fourni “tel quel”, sans garantie.<br />
-      Nous ne sommes pas responsables des pertes, dommages ou litiges liés à l’utilisation du service.</p>
-      <h2 className="text-lg font-semibold mt-6 text-blue-600">7. Résiliation</h2>
-      <p>Nous pouvons suspendre ou supprimer votre accès à tout moment en cas de violation de ces Conditions.</p>
-      <h2 className="text-lg font-semibold mt-6 text-blue-600">8. Contact</h2>
-  <p className="font-bold mt-4">Pour toute question, contactez :<br />
-  📧 warren.lespcdewarren@gmail.com</p>
-    </main>
+
+      <LegalSectionTitle>5. Propriété intellectuelle</LegalSectionTitle>
+      <p>
+        Les éléments du Site (textes, visuels, structure, marques) sont la propriété de Walref ou de tiers ayant concédé une licence. Toute reproduction non autorisée est interdite.
+      </p>
+
+      <LegalSectionTitle>6. Liens externes</LegalSectionTitle>
+      <p>
+        Le Site peut contenir des liens vers des sites tiers. Walref n&apos;exerce aucun contrôle sur ces sites et décline toute responsabilité quant à leur contenu ou leurs pratiques.
+      </p>
+
+      <LegalSectionTitle>7. Données personnelles</LegalSectionTitle>
+      <p>
+        Les traitements de données sont décrits dans la <Link href="/privacy">politique de confidentialité</Link>.
+      </p>
+
+      <LegalSectionTitle>8. Limitation de responsabilité</LegalSectionTitle>
+      <p>
+        Le Site est fourni « en l&apos;état ». Dans les limites autorisées par la loi, Walref ne saurait être tenue responsable des dommages indirects liés à l&apos;utilisation ou à l&apos;impossibilité d&apos;utiliser le Site. Les obligations relatives à la vente aux consommateurs demeurent régies par les CGV et le droit applicable.
+      </p>
+
+      <LegalSectionTitle>9. Modification des CGU</LegalSectionTitle>
+      <p>
+        Walref peut modifier les présentes CGU ; la date de mise à jour est indiquée en tête de page. L&apos;utilisation du Site après modification vaut acceptation des nouvelles conditions, dans la mesure permise par la loi.
+      </p>
+
+      <LegalSectionTitle>10. Contact</LegalSectionTitle>
+      <p>
+        <a href="mailto:warren.lespcdewarren@gmail.com">warren.lespcdewarren@gmail.com</a>
+      </p>
+    </LegalPageShell>
   );
 }

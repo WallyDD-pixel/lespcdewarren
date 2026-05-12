@@ -1,44 +1,119 @@
+import type { Metadata } from "next";
+import LegalPageShell, { LegalSectionTitle } from "@/components/legal/LegalPageShell";
+
+export const metadata: Metadata = {
+  title: "Politique de confidentialité — lespcdewarren",
+  description: "Traitement des données personnelles sur LesPCdeWarren (Walref).",
+};
+
 export default function PrivacyPage() {
   return (
-    <main className="max-w-3xl mx-auto p-6 bg-white rounded-lg shadow-md text-gray-900">
-      <h1 className="text-2xl font-bold mb-4 text-blue-600">Politique de confidentialité – Klipr</h1>
-      <p><strong>Dernière mise à jour :</strong> 23 octobre 2025</p>
-      <p>La confidentialité de vos données est importante pour nous.<br />
-      Cette politique explique quelles données sont collectées et comment elles sont utilisées dans l’application Klipr.</p>
+    <LegalPageShell
+      title="Politique de confidentialité"
+      intro={
+        <>
+          <p className="text-white/70">
+            <strong className="text-white/85">Responsable du traitement :</strong> Walref — LesPCdeWarren, 3 rue des Carreaux, 95110 Sannois, France — SIRET 921 797 338 00016 —{" "}
+            <a href="mailto:warren.lespcdewarren@gmail.com">warren.lespcdewarren@gmail.com</a>
+          </p>
+          <p className="mt-2">
+            <strong className="text-white/80">Dernière mise à jour :</strong> 12 mai 2026
+          </p>
+        </>
+      }
+    >
+      <p>
+        La présente politique décrit comment Walref traite les données personnelles collectées via le site <strong>lespcdewarren</strong> (boutique en ligne, compte client, commandes, messages et fonctionnalités associées), conformément au Règlement (UE) 2016/679 (RGPD) et à la loi Informatique et Libertés.
+      </p>
 
-      <h2 className="text-lg font-semibold mt-6 text-blue-600">1. Données collectées</h2>
-      <ul className="list-disc ml-6">
-        <li>Les informations fournies lors de la connexion (via Google Auth) : nom, e-mail, photo de profil.</li>
-        <li>Les informations d’utilisation (consultation de vidéos, création de campagnes, interactions).</li>
-        <li>Aucune donnée sensible (mot de passe, coordonnées bancaires, etc.) n’est stockée par Klipr.</li>
+      <LegalSectionTitle>1. Données collectées</LegalSectionTitle>
+      <ul>
+        <li>
+          <strong>Compte utilisateur :</strong> identifiant de connexion par <strong>adresse e-mail et mot de passe</strong> (mot de passe stocké sous forme dérivée / hachée, non lisible en clair) ; nom ou pseudonyme le cas échéant.
+        </li>
+        <li>
+          <strong>Commandes et livraison :</strong> coordonnées de facturation et de livraison, téléphone si fourni, détail des commandes, historique de paiement (statut, références de transaction via Stripe ou virement).
+        </li>
+        <li>
+          <strong>Messages et contenus</strong> que vous envoyez via le Site (contenu des échanges, pièces jointes autorisées par le service).
+        </li>
+        <li>
+          <strong>Données techniques :</strong> journaux techniques minimaux (adresse IP, horodatage, type de navigateur) nécessaires à la sécurité et au bon fonctionnement du service.
+        </li>
+      </ul>
+      <p className="text-sm text-white/60">
+        Certaines pages peuvent charger des scripts tiers strictement liés à une fonctionnalité (par exemple suggestion d&apos;adresse). Dans ce cas, les données saisies peuvent être traitées par le prestataire concerné selon sa propre politique de confidentialité.
+      </p>
+
+      <LegalSectionTitle>2. Finalités et bases légales</LegalSectionTitle>
+      <ul>
+        <li>
+          <strong>Exécution du contrat</strong> (article 6(1)(b) RGPD) : gestion du compte, traitement des commandes, livraison, facturation, paiement, support client.
+        </li>
+        <li>
+          <strong>Obligations légales</strong> (article 6(1)(c) RGPD) : comptabilité, conservation des pièces justificatives, réponse aux demandes des autorités lorsque la loi l&apos;impose.
+        </li>
+        <li>
+          <strong>Intérêt légitime</strong> (article 6(1)(f) RGPD) : sécurisation du Site, lutte contre la fraude, amélioration du service, mesures techniques de maintenance.
+        </li>
       </ul>
 
-      <h2 className="text-lg font-semibold mt-6 text-blue-600">2. Utilisation des données</h2>
-      <ul className="list-disc ml-6">
-        <li>gérer votre compte et votre profil ;</li>
-        <li>afficher et recommander des campagnes pertinentes ;</li>
-        <li>améliorer les performances et la sécurité de l’app.</li>
+      <LegalSectionTitle>3. Destinataires et sous-traitants</LegalSectionTitle>
+      <p>Les données peuvent être communiquées à :</p>
+      <ul>
+        <li>
+          <strong>Stripe</strong> (paiement par carte) — traitement conformément à ses conditions ;
+        </li>
+        <li>
+          <strong>Amazon Web Services (AWS)</strong> ou équivalent pour l&apos;hébergement et l&apos;infrastructure du Site — traitement principalement en lien avec l&apos;UE selon les services et options configurées ;
+        </li>
+        <li>les prestataires d&apos;envoi d&apos;e-mails transactionnels ou techniques strictement nécessaires au fonctionnement du service ;</li>
+        <li>les transporteurs ou partenaires logistiques, dans la mesure nécessaire à la livraison.</li>
       </ul>
 
-      <h2 className="text-lg font-semibold mt-6 text-blue-600">3. Partage des données</h2>
-      <ul className="list-disc ml-6">
-        <li>Firebase (hébergement et authentification sécurisée)</li>
-        <li>Plateformes externes (Twitch, YouTube) uniquement pour redirection</li>
+      <LegalSectionTitle>4. Transferts hors Union européenne</LegalSectionTitle>
+      <p>
+        Lorsque des sous-traitants sont situés hors de l&apos;EEE, Walref veille à ce que soient mises en œuvre des garanties appropriées (clauses types de la Commission européenne, mesures complémentaires le cas échéant), conformément au RGPD.
+      </p>
+
+      <LegalSectionTitle>5. Durées de conservation</LegalSectionTitle>
+      <p>
+        Les données nécessaires à la gestion des commandes et à la relation commerciale sont conservées pendant la relation contractuelle, puis <strong>jusqu&apos;à dix (10) ans</strong> lorsque la conservation répond à une obligation légale (notamment obligations comptables et fiscales) ou à la constatation, l&apos;exercice ou la défense d&apos;un droit en justice.
+      </p>
+      <p className="text-sm text-white/60">
+        Les données de compte inactif peuvent être archivées ou supprimées avant ce délai sur demande du titulaire du compte, sous réserve des obligations légales de conservation.
+      </p>
+
+      <LegalSectionTitle>6. Cookies et traceurs</LegalSectionTitle>
+      <p>
+        Walref <strong>n&apos;utilise pas de traceurs publicitaires ou d&apos;outils d&apos;analytics marketing</strong> sur le Site dans la configuration décrite à la date de la présente politique. Sont utilisés des mécanismes strictement nécessaires au fonctionnement du service (par exemple maintien de session, panier, sécurité).
+      </p>
+
+      <LegalSectionTitle>7. Vos droits</LegalSectionTitle>
+      <p>Vous disposez des droits suivants, dans les conditions et limites prévues par le RGPD :</p>
+      <ul>
+        <li>droit d&apos;accès, de rectification et d&apos;effacement (« droit à l&apos;oubli ») ;</li>
+        <li>droit à la limitation du traitement ;</li>
+        <li>droit à la portabilité des données lorsque applicable ;</li>
+        <li>droit d&apos;opposition, notamment au traitement fondé sur l&apos;intérêt légitime pour des raisons tenant à votre situation particulière ;</li>
+        <li>droit de retirer votre consentement lorsque le traitement en est fondé ;</li>
+        <li>
+          droit d&apos;introduire une réclamation auprès de la CNIL (
+          <a href="https://www.cnil.fr" target="_blank" rel="noopener noreferrer">
+            www.cnil.fr
+          </a>
+          ).
+        </li>
       </ul>
+      <p>
+        Pour exercer vos droits ou pour toute question relative à vos données :{" "}
+        <a href="mailto:warren.lespcdewarren@gmail.com">warren.lespcdewarren@gmail.com</a>. Une pièce d&apos;identité peut être demandée pour prévenir l&apos;usurpation d&apos;identité.
+      </p>
 
-      <h2 className="text-lg font-semibold mt-6 text-blue-600">4. Stockage et sécurité</h2>
-      <p>Vos données sont stockées sur Google Firebase, qui respecte les normes de sécurité internationales (ISO 27001, RGPD).<br />
-      Nous mettons tout en œuvre pour protéger vos informations.</p>
-
-      <h2 className="text-lg font-semibold mt-6 text-blue-600">5. Vos droits</h2>
-      <ul className="list-disc ml-6">
-        <li>demander la suppression de votre compte ;</li>
-        <li>accéder ou corriger vos informations personnelles.</li>
-      </ul>
-
-      <h2 className="text-lg font-semibold mt-6 text-blue-600">6. Contact</h2>
-  <p className="font-bold mt-4">Pour toute demande relative à vos données :<br />
-  📧 warren.lespcdewarren@gmail.com</p>
-    </main>
+      <LegalSectionTitle>8. Sécurité</LegalSectionTitle>
+      <p>
+        Walref met en œuvre des mesures techniques et organisationnelles appropriées pour protéger les données contre la destruction accidentelle ou illicite, la perte, l&apos;altération, la divulgation ou l&apos;accès non autorisé.
+      </p>
+    </LegalPageShell>
   );
 }

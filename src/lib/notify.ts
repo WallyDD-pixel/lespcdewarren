@@ -24,7 +24,7 @@ export type NotifyParams = {
   type: "WITHDRAWAL_STATUS" | "ORDER_EVENT" | "CASE_EVENT";
   title: string;
   message?: string;
-  link?: string; // ex: /admin/listings
+  link?: string; // ex: /admin/orders
   emailSubject?: string; // optionnel, sinon title
   emailTo?: string; // optionnel, sinon ADMIN_ALERT_EMAIL
 };

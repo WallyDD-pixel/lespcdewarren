@@ -109,7 +109,6 @@ export async function middleware(req: NextRequest) {
     const strictBuckets: Array<{ test: RegExp; limit: number }> = [
       { test: /^\/api\/auth\/login/i, limit: 10 },
       { test: /^\/api\/uploads/i, limit: 20 },
-      { test: /^\/api\/marketplace\/conversations/i, limit: 60 },
     ];
     for (const b of strictBuckets) {
       if (b.test.test(path)) {
@@ -125,18 +124,6 @@ export async function middleware(req: NextRequest) {
 
   // Section admin protégée
   if (path.startsWith("/admin")) {
-    const hasSession = req.cookies.has("lespcdewarren_session");
-    if (!hasSession) {
-      const url = new URL("/login", req.url);
-      url.searchParams.set("next", req.nextUrl.pathname);
-      const res = NextResponse.redirect(url);
-      setSecurityHeaders(res, req);
-      return res;
-    }
-  }
-
-  // Création d'annonce protégée: nécessite une session
-  if (path === "/marketplace/new" || path.startsWith("/marketplace/new/")) {
     const hasSession = req.cookies.has("lespcdewarren_session");
     if (!hasSession) {
       const url = new URL("/login", req.url);

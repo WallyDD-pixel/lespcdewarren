@@ -5,7 +5,7 @@ import { getSession } from "@/lib/session";
 export async function GET() {
   const session = await getSession();
   if (session.user?.role !== "ADMIN") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const categories = await prisma.category.findMany({ orderBy: { name: "asc" }, include: { _count: { select: { products: true, listings: true } } } });
+  const categories = await prisma.category.findMany({ orderBy: { name: "asc" }, include: { _count: { select: { products: true } } } });
   return NextResponse.json({ categories });
 }
 

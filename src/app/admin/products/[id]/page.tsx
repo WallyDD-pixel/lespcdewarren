@@ -1,9 +1,15 @@
-
 "use client";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import useSWR from "swr";
 import Link from "next/link";
+import AdminGameBenchmarksEditor from "@/components/admin/AdminGameBenchmarksEditor";
+import {
+  mergeGameBenchmarksIntoSpecs,
+  parseGameBenchmarks,
+  readBenchmarkDisclaimer,
+  type GameBenchmarkRow,
+} from "@/lib/gameBenchmarks";
 
 export default function EditProductPage() {
   const { id: idStr } = useParams<{ id: string }>();
@@ -43,6 +49,9 @@ export default function EditProductPage() {
     os?: string;
     highlights: string[];
   }>({ ram: [], storage: [], highlights: [] });
+
+  const [benchRows, setBenchRows] = useState<GameBenchmarkRow[]>([]);
+  const [benchDisclaimer, setBenchDisclaimer] = useState("");
 
   const safeParse = (json: string): Record<string, unknown> => {
     try {
@@ -84,6 +93,8 @@ export default function EditProductPage() {
           os: s.os != null ? String(s.os) : "",
           highlights: arr(s.highlights),
         });
+        setBenchRows(parseGameBenchmarks(s) ?? []);
+        setBenchDisclaimer(readBenchmarkDisclaimer(s) ?? "");
       })
       .finally(() => setLoading(false));
   }, [id]);
@@ -101,10 +112,19 @@ export default function EditProductPage() {
     syncSpecs(next);
   };
 
+  const onBenchChange = ({ rows, disclaimer }: { rows: GameBenchmarkRow[]; disclaimer: string }) => {
+    setBenchRows(rows);
+    setBenchDisclaimer(disclaimer);
+    setForm((f) => ({
+      ...f,
+      specs: JSON.stringify(mergeGameBenchmarksIntoSpecs({ ...safeParse(f.specs), ...specsForm }, rows, disclaimer), null, 2),
+    }));
+  };
+
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const save = async () => {
     if (Number.isNaN(id)) return;
-    const mergedSpecs = { ...safeParse(form.specs), ...specsForm };
+    const mergedSpecs = mergeGameBenchmarksIntoSpecs({ ...safeParse(form.specs), ...specsForm }, benchRows, benchDisclaimer);
     const res = await fetch(`/api/admin/products/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -249,6 +269,8 @@ export default function EditProductPage() {
           </div>
           <button type="button" className="mt-2 btn-ghost" onClick={() => addArrayItem("highlights")}>+ Ajouter un point fort</button>
         </div>
+
+        <AdminGameBenchmarksEditor rows={benchRows} disclaimer={benchDisclaimer} onChange={onBenchChange} />
       </div>
       {/* JSON editor remains for advanced keys */}
       <div className="section-contrast p-4">

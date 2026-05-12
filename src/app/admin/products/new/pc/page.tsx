@@ -1,6 +1,11 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import AdminGameBenchmarksEditor from "@/components/admin/AdminGameBenchmarksEditor";
+import {
+  mergeGameBenchmarksIntoSpecs,
+  type GameBenchmarkRow,
+} from "@/lib/gameBenchmarks";
 
 // Suggestions connues pour l'autocomplétion
 const CPU_OPTIONS: string[] = [
@@ -165,13 +170,28 @@ export default function NewPCProductPage() {
   }
 
   const [specsForm, setSpecsForm] = useState<{ cpu?: string; gpu?: string; motherboard?: string; ram: string[]; storage: string[]; psu?: string; os?: string; highlights: string[] }>({ ram: [], storage: [], highlights: [] });
+  const [benchRows, setBenchRows] = useState<GameBenchmarkRow[]>([]);
+  const [benchDisclaimer, setBenchDisclaimer] = useState("");
   const safeParse = (json: string): Record<string, unknown> => { try { return JSON.parse(json || "{}") ?? {}; } catch { return {}; } };
   const syncSpecs = (updated: typeof specsForm) => { setSpecsForm(updated); setForm((f) => ({ ...f, specs: JSON.stringify({ ...safeParse(f.specs), ...updated }, null, 2) })); };
   const updateArray = (key: "ram" | "storage" | "highlights", index: number, value: string) => syncSpecs({ ...specsForm, [key]: specsForm[key].map((v, i) => (i === index ? value : v)) } as typeof specsForm);
 
+  const onBenchChange = ({ rows, disclaimer }: { rows: GameBenchmarkRow[]; disclaimer: string }) => {
+    setBenchRows(rows);
+    setBenchDisclaimer(disclaimer);
+    setForm((f) => ({
+      ...f,
+      specs: JSON.stringify(mergeGameBenchmarksIntoSpecs({ ...safeParse(f.specs), ...specsForm }, rows, disclaimer), null, 2),
+    }));
+  };
+
   const create = async () => {
-    const mergedSpecs: any = { ...safeParse(form.specs), ...specsForm, role: "pc" };
-    const priceCents = Math.round(parseFloat(priceEuro.replace(",",".")) * 100) || 0;
+    const mergedSpecs: Record<string, unknown> = mergeGameBenchmarksIntoSpecs(
+      { ...safeParse(form.specs), ...specsForm, role: "pc" },
+      benchRows,
+      benchDisclaimer
+    );
+    const priceCents = Math.round(parseFloat(priceEuro.replace(",", ".")) * 100) || 0;
     await fetch(`/api/products`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -183,7 +203,7 @@ export default function NewPCProductPage() {
         priceCents,
         currency: "EUR",
         imageUrl: form.images[0]?.url,
-  specs: mergedSpecs,
+        specs: mergedSpecs,
         stock: form.stock,
         active: form.active,
       }),
@@ -371,6 +391,10 @@ export default function NewPCProductPage() {
             })}
           </div>
         </div>
+      </div>
+
+      <div className="section-contrast p-4">
+        <AdminGameBenchmarksEditor rows={benchRows} disclaimer={benchDisclaimer} onChange={onBenchChange} />
       </div>
 
       <div className="section-contrast p-4">

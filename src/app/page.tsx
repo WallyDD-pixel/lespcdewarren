@@ -5,8 +5,8 @@ import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { useCart } from "@/store/cart";
 import ProductCard, { type ProductCardData } from "@/components/ProductCard";
-import ListingCard, { type ListingCardData } from "@/components/ListingCard";
 import { SHOW_DEVIS, SHOW_CATALOGUE } from "@/lib/featureFlags";
+import { teaserBenchmarkCards } from "@/lib/gameBenchmarks";
 
 const TRUSTPILOT_PROFILE_URL = process.env.NEXT_PUBLIC_TRUSTPILOT_PROFILE_URL || "https://fr.trustpilot.com/review/lespcdewarren.fr";
 
@@ -30,10 +30,6 @@ interface TestimonialsRes { testimonials: Testimonial[]; stats: { count: number;
 export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
   const { add } = useCart();
-
-  // Nouveaux: listings d’occasion
-  const [listings, setListings] = useState<any[]>([]);
-  // const [slides, setSlides] = useState<any[]>([]); // supprimé
 
   const [testimonials, setTestimonials] = useState<TestimonialsRes | null>(null);
   // New: filter by rating
@@ -63,13 +59,6 @@ export default function Home() {
       .catch(() => setTestimonials({ testimonials: [], stats: { count: 0, average: 0 } }));
   }, []);
 
-  useEffect(() => {
-    fetch("/api/marketplace/listings?q=&store=false&mine=false", { cache: "no-store" })
-      .then((r) => r.json())
-      .then((d) => setListings((d?.data ?? []).slice(0, 12)))
-      .catch(() => setListings([]));
-  }, []);
-
   const cards: ProductCardData[] = useMemo(() => {
     // Ne garder que les PC complets dans "Les PC de Warren"
   const featured = (products as any[]).filter((p) => p?.role === "pc");
@@ -78,6 +67,7 @@ export default function Home() {
       const components = [s.cpu, s.gpu, Array.isArray(s.ram) ? s.ram[0] : undefined]
         .filter(Boolean)
         .map(String) as string[];
+      const perfTeaser = teaserBenchmarkCards(p?.specs, 2);
       return {
         id: p.id,
         name: p.name,
@@ -86,26 +76,10 @@ export default function Home() {
         imageUrl: p.imageUrl,
         highlights: p.highlights,
         components: components.length ? components : undefined,
+        ...(perfTeaser?.length ? { perfTeaser } : {}),
       } as ProductCardData;
     });
   }, [products]);
-
-  const listingCards: ListingCardData[] = useMemo(
-    () =>
-      listings.map((l) => ({
-        id: l.id,
-        title: l.title,
-        priceCents: l.priceCents,
-        imageUrl: l.images?.[0]?.url,
-        city: l.city,
-        zip: l.zip,
-        department: l?.seller?.profile?.department || undefined,
-        condition: l.condition,
-        specs: l.specs || null,
-        isSold: l.status === 'SOLD',
-      })),
-    [listings]
-  );
 
   // New: rating distribution + filtered testimonials
   const distribution = useMemo(() => {
@@ -183,7 +157,7 @@ export default function Home() {
                 <div className="font-semibold">Paiement sécurisé</div>
                 <div className="text-sm text-white/70">Stripe (CB, 3D Secure)</div>
                 <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-                  <span className="chip">PayPal</span>
+                  <span className="chip">Stripe</span>
                   <span className="chip">CB / Visa / Mastercard</span>
                 </div>
               </div>
@@ -235,28 +209,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Marketplace promos: Sell your PC + Store refurbished */}
-      <section className="container pb-12">
-        <div className="grid gap-4 md:grid-cols-2">
-          <Link href="/marketplace/new" className="card hover-card p-6 flex items-start gap-4">
-            <div className="text-3xl" aria-hidden>💻</div>
-            <div>
-              <h3 className="text-lg font-semibold">Vendre votre PC</h3>
-              <p className="text-sm text-white/75 mt-1">Publiez votre annonce en quelques minutes et discutez avec les acheteurs.</p>
-              <div className="mt-3 inline-flex items-center gap-2 text-[var(--accent)] text-sm">Publier une annonce →</div>
-            </div>
-          </Link>
-          <Link href="/marketplace" className="card hover-card p-6 flex items-start gap-4">
-            <div className="text-3xl" aria-hidden>🛠️</div>
-            <div>
-              <h3 className="text-lg font-semibold">Marketplace</h3>
-              <p className="text-sm text-white/75 mt-1">Sélection testée par nos soins, prête à l’emploi, au meilleur prix.</p>
-              <div className="mt-3 inline-flex items-center gap-2 text-[var(--accent)] text-sm">Voir le Marketplace →</div>
-            </div>
-          </Link>
-        </div>
-      </section>
-
       {/* Produits en vedette en slider */}
       <section className="container pb-16">
         <div className="mb-6 flex items-center justify-between">
@@ -296,76 +248,6 @@ export default function Home() {
             </button>
           </div>
         )}
-      </section>
-
-      {/* Séparateur visuel entre rubriques */}
-      <section aria-hidden className="container pb-8 -mt-4">
-        <div className="relative py-4">
-          <div className="h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className="px-3 py-1 rounded-full border border-white/10 bg-white/5 text-xs text-white/70 backdrop-blur">
-              Aussi sur le Marketplace
-            </span>
-          </div>
-        </div>
-      </section>
-
-      {/* Card de présentation Marketplace (occasion + vendre) */}
-      <section className="container pb-12">
-        <div className="relative rounded-2xl p-[1.25px] bg-gradient-to-br from-[var(--accent)]/80 via-fuchsia-500/60 to-[var(--accent)]/80 shadow-xl shadow-[var(--accent)]/20">
-          <div className="rounded-[15px] overflow-hidden bg-white/[0.03] border border-white/10 backdrop-blur-[2px]">
-            <div className="grid gap-6 md:grid-cols-2 p-6 md:p-8 items-center">
-              <div>
-                <div className="chip mb-3">Marketplace</div>
-                <h2 className="text-2xl md:text-3xl font-bold tracking-tight">Marketplace sécurisée</h2>
-                <p className="mt-3 text-white/85">
-                  Achetez et vendez en toute sécurité entre particuliers. Messagerie intégrée, profils vérifiés et paiements protégés.
-                </p>
-                <div className="mt-4 grid gap-2 text-sm text-white/80">
-                  <div className="flex items-center gap-2"><span className="text-emerald-400">✓</span> Messagerie sécurisée</div>
-                  <div className="flex items-center gap-2"><span className="text-emerald-400">✓</span> Profils vérifiés</div>
-                  <div className="flex items-center gap-2"><span className="text-emerald-400">✓</span> Paiements via PayPal</div>
-                </div>
-                <div className="mt-6 flex flex-wrap items-center gap-3">
-                  <Link href="/marketplace" className="btn-primary">Voir le Marketplace</Link>
-                  <Link href="/marketplace/new" className="btn-ghost">Vendre mon PC gamer</Link>
-                </div>
-              </div>
-              <div className="relative aspect-video md:aspect-square w-full rounded-xl overflow-hidden bg-white/5 border border-white/10">
-                <div className="absolute inset-0 grid grid-cols-3 gap-1 p-2 opacity-90">
-                  {listingCards.slice(0, 9).map((it, i) => (
-                    <div key={i} className="relative rounded overflow-hidden bg-white/10">
-                      {it.imageUrl && (
-                        <Image src={it.imageUrl} alt={it.title} fill sizes="(max-width: 768px) 33vw, 180px" className="object-cover" />
-                      )}
-                    </div>
-                  ))}
-                  {Array.from({ length: Math.max(0, 9 - Math.min(9, listingCards.length)) }).map((_, i) => (
-                    <div key={`ph-${i}`} className="bg-white/10 rounded" />
-                  ))}
-                </div>
-                <div className="absolute inset-0 bg-gradient-to-tr from-[var(--accent)]/15 to-transparent" />
-                <div className="absolute bottom-3 right-3 rounded-md bg-[var(--accent)]/90 text-white text-xs font-semibold px-3 py-1.5 shadow">Sécurisé</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* PC d’occasion (Marketplace) */}
-      <section className="container pb-16">
-        <div className="mb-6 flex items-center justify-between">
-          <h2 className="text-xl font-semibold">Marketplace</h2>
-          <Link href="/marketplace" className="text-sm text-[var(--accent)] hover:underline">
-            Voir tout
-          </Link>
-        </div>
-        {/* Grille 3x2 en petite taille */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {listingCards.slice(0, 6).map((l) => (
-            <ListingCard key={l.id} l={l} size="sm" />
-          ))}
-        </div>
       </section>
 
       {/* Configurer votre propre PC (masqué si SHOW_DEVIS = false) */}

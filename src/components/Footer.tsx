@@ -77,9 +77,10 @@ export default function Footer() {
           <div>
             <div className="text-sm font-semibold mb-3">Légal</div>
             <ul className="space-y-2 text-sm text-white/70">
-              <li><Link href="/faq#cgu" className="hover:underline">CGU</Link></li>
-              <li><Link href="/faq#cgv" className="hover:underline">CGV</Link></li>
-              <li><Link href="/faq#garantie" className="hover:underline">Garantie</Link></li>
+              <li><Link href="/mentions-legales" className="hover:underline">Mentions légales</Link></li>
+              <li><Link href="/terms" className="hover:underline">CGU</Link></li>
+              <li><Link href="/cgv" className="hover:underline">CGV</Link></li>
+              <li><Link href="/cgv#garanties" className="hover:underline">Garanties légales</Link></li>
               <li><Link href="/privacy" className="hover:underline">Confidentialité</Link></li>
             </ul>
           </div>
@@ -90,7 +91,7 @@ export default function Footer() {
               {SHOW_DEVIS && <li><Link href="/devis" className="hover:underline">Devis PC</Link></li>}
               <li><Link href="#" className="hover:underline">Notre équipe</Link></li>
               <li><Link href="#" className="hover:underline">Partenariats</Link></li>
-              <li><Link href="#" className="hover:underline">Mentions légales</Link></li>
+              <li><Link href="/faq" className="hover:underline">FAQ</Link></li>
             </ul>
           </div>
         </div>
@@ -99,7 +100,7 @@ export default function Footer() {
         <div className="mt-10 flex flex-col gap-3 border-t border-white/10 pt-6 text-xs text-white/60 md:flex-row md:items-center md:justify-between">
           <div>© {year} lespcdewarren. Tous droits réservés.</div>
           <div className="flex flex-wrap items-center gap-4">
-            <span className="chip">Paiements sécurisés PayPal</span>
+            <span className="chip">Paiement carte (Stripe) · virement sur facture</span>
             <span className="chip">Support 7j/7</span>
             <span className="chip">Expédition rapide</span>
             <Suspense fallback={null}><DiscordChip /></Suspense>

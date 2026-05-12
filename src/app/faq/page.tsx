@@ -57,7 +57,7 @@ const faqData: FAQItem[] = [
     id: "cgv-2",
     category: "Conditions Générales de Vente",
     question: "Quels sont les modes de paiement acceptés ?",
-    answer: "Nous acceptons les cartes bancaires (Visa, Mastercard), PayPal et les virements bancaires pour les commandes importantes."
+    answer: "Paiement par carte bancaire via Stripe (Visa, Mastercard, etc.) et virement bancaire sur facture (délais de traitement incluant l’encaissement du virement)."
   },
   {
     id: "cgv-3",
@@ -65,13 +65,15 @@ const faqData: FAQItem[] = [
     question: "Quels sont les délais de livraison ?",
     answer: (
       <div className="space-y-2">
-        <p>Les délais de livraison varient en fonction des commandes en cours et du type de produit :</p>
-        <ul className="list-disc list-inside space-y-1">
-          <li>PC en stock : 2 à 5 jours ouvrés en France métropolitaine</li>
-          <li>PC sur-mesure : 5 à 15 jours ouvrés selon la configuration</li>
-          <li>DOM-TOM et international : 7 à 21 jours ouvrés</li>
-        </ul>
-        <p className="text-sm text-gray-600">Les délais peuvent être rallongés en période de forte activité. Nous vous tiendrons informé de l'avancement de votre commande.</p>
+        <p>
+          Livraison possible vers la <strong>France</strong>, la <strong>Belgique</strong>, la <strong>Suisse</strong>, les <strong>DOM-TOM</strong> et l&apos;<strong>Afrique du Nord</strong>, selon les cas (douane, transporteur).
+        </p>
+        <p>
+          <strong>Frais de port :</strong> à partir de 30&nbsp;€ (montant définitif indiqué au panier avant paiement).
+        </p>
+        <p className="text-sm text-gray-600">
+          <strong>Délai maximum indicatif :</strong> 3 semaines au total (préparation, attente éventuelle d&apos;encaissement du virement par l&apos;organisme de paiement, puis expédition). Les délais peuvent varier ; nous vous tenons informé de l&apos;avancement de votre commande.
+        </p>
       </div>
     )
   },
@@ -90,7 +92,11 @@ const faqData: FAQItem[] = [
           <li>Les dysfonctionnements liés à l'usure normale</li>
           <li>Les problèmes de compatibilité logicielle</li>
         </ul>
-        <p className="text-sm text-gray-600">La garantie ne couvre pas les dommages dus à une mauvaise utilisation, aux chocs ou à l'oxydation.</p>
+        <p className="text-sm text-gray-600">La garantie commerciale ne couvre pas les dommages dus à une mauvaise utilisation, aux chocs ou à l&apos;oxydation.</p>
+        <p className="text-sm text-gray-600 mt-2">
+          Sont également applicables les garanties légales du consommateur, notamment la garantie légale de conformité (deux ans à compter de la livraison du bien neuf). Voir aussi nos{" "}
+          <a href="/cgv#garanties" className="text-[var(--accent)] underline">CGV — garanties</a>.
+        </p>
       </div>
     )
   },

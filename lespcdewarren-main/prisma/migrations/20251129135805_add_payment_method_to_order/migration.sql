@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Order" ADD COLUMN "paymentMethod" TEXT DEFAULT 'PAYPAL_ONLINE_1X';
+

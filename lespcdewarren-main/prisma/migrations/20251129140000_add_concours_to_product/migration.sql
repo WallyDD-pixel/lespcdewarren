@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Product" ADD COLUMN "concours" BOOLEAN NOT NULL DEFAULT 0;
+

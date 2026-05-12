@@ -30,7 +30,7 @@ async function ensureSettingTable(): Promise<boolean> {
 
 /**
  * Retourne le prochain numéro de facture et incrémente un compteur stocké en base (table Setting).
- * - key: clé du compteur (ex: "store_invoice_counter" ou "mp_invoice_counter")
+ * - key: clé du compteur (ex: "store_invoice_counter")
  * - prefix: préfixe (ex: "LPDW")
  * - startAt: première valeur (ex: 1000)
  */

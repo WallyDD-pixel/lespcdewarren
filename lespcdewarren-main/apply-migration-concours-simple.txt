@@ -1,0 +1,24 @@
+Commandes à exécuter sur le VPS pour ajouter la colonne concours:
+
+1. Se connecter au VPS:
+ssh ubuntu@51.38.236.183
+
+2. Aller dans le dossier du projet:
+cd /var/www/lespcdewarren/lespcdewarren
+
+3. Vérifier si la colonne existe:
+sqlite3 prisma/prod.db "PRAGMA table_info(Product);" | grep concours
+
+4. Si la colonne n'existe pas, l'ajouter:
+sqlite3 prisma/prod.db "ALTER TABLE Product ADD COLUMN concours BOOLEAN NOT NULL DEFAULT 0;"
+
+5. Marquer la migration comme appliquée:
+npx prisma migrate resolve --applied 20251129140000_add_concours_to_product
+
+6. Régénérer le client Prisma:
+npx prisma generate
+
+7. Rebuild et redémarrer:
+npm run build
+pm2 restart lespcdewarren
+

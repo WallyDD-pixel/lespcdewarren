@@ -47,11 +47,10 @@ export default function AdminCategoriesPage() {
               <th className="px-4 py-3">Slug</th>
               <th className="px-4 py-3">Parent</th>
               <th className="px-4 py-3">Produits</th>
-              <th className="px-4 py-3">Annonces</th>
             </tr>
           </thead>
           <tbody>
-            {isLoading && <tr><td colSpan={6} className="px-4 py-4">Chargement…</td></tr>}
+            {isLoading && <tr><td colSpan={5} className="px-4 py-4">Chargement…</td></tr>}
             {categories.map((c) => (
               <tr key={c.id} className="border-t border-white/10">
                 <td className="px-4 py-3">{c.id}</td>
@@ -64,10 +63,9 @@ export default function AdminCategoriesPage() {
                   </select>
                 </td>
                 <td className="px-4 py-3">{c._count?.products ?? 0}</td>
-                <td className="px-4 py-3">{c._count?.listings ?? 0}</td>
               </tr>
             ))}
-            {categories.length === 0 && !isLoading && <tr><td colSpan={6} className="px-4 py-4">Aucune catégorie</td></tr>}
+            {categories.length === 0 && !isLoading && <tr><td colSpan={5} className="px-4 py-4">Aucune catégorie</td></tr>}
           </tbody>
         </table>
       </div>

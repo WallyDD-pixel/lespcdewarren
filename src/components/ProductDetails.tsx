@@ -3,6 +3,13 @@ import Image from "next/image";
 import { useMemo, useState, useRef, useEffect } from "react";
 import { useCart } from "@/store/cart";
 import { useRouter } from "next/navigation";
+import {
+  parseGameBenchmarks,
+  readBenchmarkDisclaimer,
+  maxBenchmarkFpsAvg,
+} from "@/lib/gameBenchmarks";
+
+export type { GameBenchmarkRow } from "@/lib/gameBenchmarks";
 
 export type ProductDTO = {
   id: number;
@@ -211,6 +218,20 @@ export default function ProductDetails({ product }: { product: ProductDTO }) {
     return product.categoryName;
   }, [product.specs, product.categoryName]);
 
+  const gameBenchmarks = useMemo(() => parseGameBenchmarks(product.specs), [product.specs]);
+  const benchmarkDisclaimer = useMemo(() => readBenchmarkDisclaimer(product.specs), [product.specs]);
+  const benchMaxFps = useMemo(
+    () => (gameBenchmarks?.length ? maxBenchmarkFpsAvg(gameBenchmarks) : 1),
+    [gameBenchmarks]
+  );
+  const topBenchCards = useMemo(() => {
+    if (!gameBenchmarks?.length) return [];
+    return [...gameBenchmarks]
+      .filter((r) => r.fpsAvg != null)
+      .sort((a, b) => (b.fpsAvg ?? 0) - (a.fpsAvg ?? 0))
+      .slice(0, 3);
+  }, [gameBenchmarks]);
+
   return (
     <div className="grid gap-8 lg:grid-cols-2">
       {/* Gallery */}
@@ -247,7 +268,14 @@ export default function ProductDetails({ product }: { product: ProductDTO }) {
 
       {/* Details */}
       <section>
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white">{product.name}</h1>
+        <div className="flex flex-wrap items-start gap-x-3 gap-y-1">
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white">{product.name}</h1>
+          {gameBenchmarks && gameBenchmarks.length > 0 && (
+            <span className="inline-flex shrink-0 items-center rounded-full border border-[var(--accent)]/45 bg-[var(--accent)]/15 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-[var(--accent)]">
+              Perf jeux
+            </span>
+          )}
+        </div>
         <div className="mt-2 text-sm text-white/60">{roleLabel}</div>
         <div className="mt-4 text-3xl font-semibold text-[var(--accent)]">{formatPrice(priceCents)}</div>
 
@@ -369,16 +397,109 @@ export default function ProductDetails({ product }: { product: ProductDTO }) {
           </button>
           <a
             href="#specs"
-            className="inline-flex items-center justify-center rounded-md border border-white/10 bg:white/5 bg-white/5 px-5 py-3 font-medium text-white/90 hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+            className="inline-flex items-center justify-center rounded-md border border-white/10 bg-white/5 px-5 py-3 font-medium text-white/90 hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
           >
             Voir les spécifications
           </a>
+          {gameBenchmarks && gameBenchmarks.length > 0 && (
+            <a
+              href="#game-benchmarks"
+              className="inline-flex items-center justify-center rounded-md border border-[var(--accent)]/40 bg-[var(--accent)]/10 px-5 py-3 font-medium text-white/90 hover:bg-[var(--accent)]/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+            >
+              Performances en jeu
+            </a>
+          )}
         </div>
 
         {/* Description */}
         <div className="prose prose-invert mt-8 max-w-none">
           <p className="text-white/80 leading-relaxed">{product.description}</p>
         </div>
+
+        {/* Performances en jeu (specs.gameBenchmarks) — placé avant les specs matériel */}
+        {gameBenchmarks && gameBenchmarks.length > 0 && (
+          <div id="game-benchmarks" className="mt-10 rounded-xl border border-[var(--accent)]/30 bg-gradient-to-br from-[var(--accent)]/[0.07] via-black/25 to-black/40 p-5 md:p-6">
+            <h2 className="text-lg font-semibold text-white md:text-xl">Performances en jeu</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-white/65">
+              FPS moyens mesurés ou estimés selon la résolution et les préréglages indiqués. Le{" "}
+              <strong className="text-white/85">1 % low</strong> donne une idée des creux de framerate (fluidité perçue).
+            </p>
+            {topBenchCards.length > 0 && (
+              <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                {topBenchCards.map((row, i) => (
+                  <div
+                    key={`${row.game}-${i}`}
+                    className="rounded-xl border border-white/10 bg-black/30 px-4 py-4 shadow-inner shadow-black/20"
+                  >
+                    <div className="text-xs font-medium uppercase tracking-wide text-white/45">Top perf</div>
+                    <div className="mt-1 line-clamp-2 min-h-[2.5rem] text-sm font-semibold leading-snug text-white">{row.game}</div>
+                    <div className="mt-3 flex items-baseline gap-1">
+                      <span className="text-3xl font-bold tabular-nums text-[var(--accent)]">{Math.round(row.fpsAvg!)}</span>
+                      <span className="text-sm font-medium text-white/50">FPS</span>
+                    </div>
+                    <div className="mt-2 text-xs text-white/55">
+                      {[row.resolution, row.preset].filter(Boolean).join(" · ") || "—"}
+                    </div>
+                    <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-[var(--accent)] to-fuchsia-500/90"
+                        style={{ width: `${Math.min(100, ((row.fpsAvg ?? 0) / benchMaxFps) * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="mt-6 overflow-x-auto rounded-lg border border-white/10">
+              <table className="min-w-full text-left text-sm">
+                <thead className="bg-white/5 text-white/70">
+                  <tr>
+                    <th className="px-4 py-3 font-medium">Jeu</th>
+                    <th className="px-4 py-3 font-medium">Résolution</th>
+                    <th className="px-4 py-3 font-medium">Réglages</th>
+                    <th className="px-4 py-3 font-medium text-right">FPS moy.</th>
+                    <th className="px-4 py-3 font-medium text-right">1 % low</th>
+                    <th className="hidden px-4 py-3 font-medium sm:table-cell md:min-w-[140px]">Relatif</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/10">
+                  {gameBenchmarks.map((row, i) => {
+                    const fps = row.fpsAvg;
+                    const pct = fps != null ? Math.min(100, (fps / benchMaxFps) * 100) : 0;
+                    return (
+                      <tr key={`${row.game}-${i}`} className="text-white/90">
+                        <td className="px-4 py-3 font-medium text-white">{row.game}</td>
+                        <td className="px-4 py-3 text-white/75">{row.resolution ?? "—"}</td>
+                        <td className="px-4 py-3 text-white/75">{row.preset ?? "—"}</td>
+                        <td className="px-4 py-3 text-right tabular-nums font-medium text-white">
+                          {fps != null ? Math.round(fps) : "—"}
+                        </td>
+                        <td className="px-4 py-3 text-right tabular-nums text-white/65">
+                          {row.fps1Low != null ? Math.round(row.fps1Low) : "—"}
+                        </td>
+                        <td className="hidden align-middle px-4 py-2 sm:table-cell">
+                          {fps != null ? (
+                            <div className="h-2 overflow-hidden rounded-full bg-white/10" title={`${Math.round(pct)} % du meilleur FPS de cette liste`}>
+                              <div
+                                className="h-full rounded-full bg-[var(--accent)]/75"
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                          ) : (
+                            <span className="text-white/40">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            {benchmarkDisclaimer && (
+              <p className="mt-4 text-xs leading-relaxed text-white/50">{benchmarkDisclaimer}</p>
+            )}
+          </div>
+        )}
 
         {/* Specs */}
         {product.specs && isRecord(product.specs) && (
@@ -433,7 +554,9 @@ export default function ProductDetails({ product }: { product: ProductDTO }) {
             <details className="mt-6">
               <summary className="cursor-pointer text-sm text-white/80 hover:text-white">Détails techniques</summary>
               <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
-                {Object.entries(product.specs).map(([key, val]) => (
+                {Object.entries(product.specs)
+                  .filter(([key]) => !["gameBenchmarks", "benchmarkDisclaimer"].includes(key))
+                  .map(([key, val]) => (
                   <div key={key} className="rounded-lg border border-white/10 bg-black/20 p-3">
                     <dt className="text-xs uppercase tracking-wide text-white/60">{key}</dt>
                     <dd className="mt-1 text-sm text-white">

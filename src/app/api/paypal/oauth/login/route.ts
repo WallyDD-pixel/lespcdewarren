@@ -11,7 +11,7 @@ function randomStr(len = 16) {
 
 export async function GET(req: NextRequest) {
   const session = await getSession();
-  if (!session.user) return NextResponse.redirect(new URL(`/login?next=${encodeURIComponent("/marketplace/seller/withdraw")}`, req.url));
+  if (!session.user) return NextResponse.redirect(new URL(`/login?next=${encodeURIComponent("/account")}`, req.url));
 
   const web = getPayPalWebBase();
   const clientId = process.env.PAYPAL_CLIENT_ID || "";

@@ -7,6 +7,6 @@ export const metadata: Metadata = {
 };
 
 export default function NosPcDOccasionPage() {
-  // Centralize inventory on marketplace page with filter
-  redirect("/marketplace?store=1");
+  // PC d’occasion : boutique sur l’accueil (plus de marketplace)
+  redirect("/");
 }

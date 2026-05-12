@@ -32,32 +32,6 @@ export default function Header({ user }: { user?: UserInfo extends undefined ? n
   const timer = useRef<NodeJS.Timeout | null>(null);
   const userMenuRef = useRef<HTMLDivElement | null>(null);
   const pathname = usePathname();
-  const [msgCount, setMsgCount] = useState(0);
-
-  // Charger le nombre de conversations (badge messagerie)
-  useEffect(() => {
-    if (!user) { setMsgCount(0); return; }
-    let alive = true;
-    const load = async () => {
-      try {
-        const res = await fetch("/api/marketplace/messages", { cache: "no-store" });
-        if (!res.ok) return;
-        const j = await res.json();
-        if (!alive) return;
-        const n = Array.isArray(j?.conversations)
-          ? j.conversations.reduce((sum: number, c: any) => sum + (c.unreadCount || 0), 0)
-          : 0;
-        setMsgCount(n);
-      } catch { /* ignore */ }
-    };
-    load();
-    const onFocus = () => load();
-    const onRead = () => load();
-    window.addEventListener("focus", onFocus);
-    window.addEventListener("messages:read", onRead);
-    const id = setInterval(load, 30000);
-    return () => { alive = false; window.removeEventListener("focus", onFocus); window.removeEventListener("messages:read", onRead); clearInterval(id as any); };
-  }, [user]);
 
   // Charger notifications
   useEffect(() => {
@@ -228,7 +202,6 @@ export default function Header({ user }: { user?: UserInfo extends undefined ? n
           <ul className="hidden md:flex items-center gap-6 text-white/80">
             { [
               { href: "/", label: "ACCUEIL" },
-              { href: "/marketplace", label: "MARKETPLACE" },
               { href: "/faq", label: "FAQ" },
               { href: "/panier", label: "PANIER" },
               ...(SHOW_DEVIS ? [{ href: "/devis", label: "CONFIGURER MON PC" }] : []),
@@ -306,10 +279,12 @@ export default function Header({ user }: { user?: UserInfo extends undefined ? n
                     <ul className="divide-y divide-white/10">
                       {notifs.length === 0 && <li className="px-3 py-3 text-sm text-white/70">Aucune notification</li>}
                       {notifs.map((n) => {
-                        const orderId = (n as any)?.data?.marketplaceOrderId;
-                        const isShipment = typeof n?.title === 'string' && n.title.toLowerCase().includes('expédi');
-                        const derived = orderId && isShipment ? `/marketplace/my-orders?id=${orderId}` : undefined;
-                        const href = derived || n.link || '#';
+                        const data = (n as any)?.data;
+                        const shopOrderId = data?.orderId ?? data?.storeOrderId;
+                        const isShipment = typeof n?.title === "string" && n.title.toLowerCase().includes("expédi");
+                        const derived =
+                          typeof shopOrderId === "number" && isShipment ? `/orders?id=${shopOrderId}` : undefined;
+                        const href = n.link || derived || "#";
                         const onClick = async (e: React.MouseEvent) => {
                           // Marquer comme lu immédiatement côté UI
                           setNotifs((arr) => arr.map((x) => x.id === n.id ? { ...x, readAt: x.readAt || new Date().toISOString() } : x));
@@ -333,26 +308,6 @@ export default function Header({ user }: { user?: UserInfo extends undefined ? n
                 )}
               </div>
 
-              <Link
-                href="/messages"
-                aria-label="Messagerie"
-                className="inline-flex relative items-center justify-center h-10 w-10 rounded-md border border-white/10 text-white/80 hover:bg-white/5 bg-black/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] transition overflow-hidden"
-                title="Messagerie"
-              >
-                <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 15a4 4 0 0 1-4 4H8l-5 3 1.5-4.5A4 4 0 0 1 1 14V7a4 4 0 0 1 4-4h12a4 4 0 0 1 4 4v8z"/>
-                  <path d="M8 9h8M8 13h5"/>
-                </svg>
-                {msgCount > 0 && (
-                  <span
-                    aria-hidden
-                    className="pointer-events-none absolute top-0.5 right-0.5 h-4 w-4 sm:h-5 sm:w-5 rounded-full bg-[var(--accent)] text-[9px] sm:text-[10px] text-black font-bold grid place-items-center shadow ring-1 ring-black/30"
-                  >
-                    {msgCount > 9 ? "9+" : msgCount}
-                  </span>
-                )}
-              </Link>
-
               <div className="relative" ref={userMenuRef}>
                 <button
                   onClick={() => setUserMenuOpen((v) => !v)}
@@ -366,19 +321,11 @@ export default function Header({ user }: { user?: UserInfo extends undefined ? n
                 {userMenuOpen && (
                   <div role="menu" className="absolute right-0 mt-2 w-56 rounded-md border border-white/10 bg-zinc-900/95 backdrop-blur text-white shadow-[0_16px_40px_rgba(0,0,0,0.45)] overflow-hidden">
                     {user.role === "ADMIN" ? (
-                      <>
-                        <Link href="/admin" className="block px-3 py-2 hover:bg-white/5" role="menuitem">Tableau de bord admin</Link>
-                        <Link href="/marketplace/seller/dashboard" className="block px-3 py-2 hover:bg-white/5" role="menuitem">Espace vendeur</Link>
-                        <Link href="/marketplace/my-orders" className="block px-3 py-2 hover:bg-white/5" role="menuitem">Mes achats marketplace</Link>
-                        <Link href="/marketplace/new" className="block px-3 py-2 hover:bg-white/5" role="menuitem">Vendre mon ordinateur</Link>
-                      </>
+                      <Link href="/admin" className="block px-3 py-2 hover:bg-white/5" role="menuitem">Tableau de bord admin</Link>
                     ) : (
                       <>
                         <Link href="/orders" className="block px-3 py-2 hover:bg-white/5" role="menuitem">Suivi de commande</Link>
                         <Link href="/account" className="block px-3 py-2 hover:bg-white/5" role="menuitem">Mon compte</Link>
-                        <Link href="/marketplace/my-orders" className="block px-3 py-2 hover:bg-white/5" role="menuitem">Mes achats marketplace</Link>
-                        <Link href="/marketplace/seller/dashboard" className="block px-3 py-2 hover:bg-white/5" role="menuitem">Espace vendeur</Link>
-                        <Link href="/marketplace/new" className="block px-3 py-2 hover:bg-white/5" role="menuitem">Vendre mon ordinateur</Link>
                       </>
                     )}
                     <div className="my-1 h-px bg-white/10" />
@@ -403,7 +350,6 @@ export default function Header({ user }: { user?: UserInfo extends undefined ? n
             </div>
             <nav className="px-5 py-4 space-y-1">
               <Link href="/" onClick={() => setOpen(false)} className={`block rounded-lg px-4 py-3 text-base font-medium hover:bg-white/5 active:bg-white/10 ${isActive("/") ? "text-[var(--accent)] font-semibold bg-white/[0.03]" : ""}`}>ACCUEIL</Link>
-              <Link href="/marketplace" onClick={() => setOpen(false)} className={`block rounded-lg px-4 py-3 text-base font-medium hover:bg-white/5 active:bg-white/10 ${isActive("/marketplace") ? "text-[var(--accent)] font-semibold bg-white/[0.03]" : ""}`}>MARKETPLACE</Link>
               <Link href="/faq" onClick={() => setOpen(false)} className={`block rounded-lg px-4 py-3 text-base font-medium hover:bg-white/5 active:bg-white/10 ${isActive("/faq") ? "text-[var(--accent)] font-semibold bg-white/[0.03]" : ""}`}>FAQ</Link>
               <Link href="/panier" onClick={() => setOpen(false)} className={`block rounded-lg px-4 py-3 text-base font-medium hover:bg-white/5 active:bg-white/10 ${isActive("/panier") ? "text-[var(--accent)] font-semibold bg-white/[0.03]" : ""}`}>PANIER</Link>
               {SHOW_DEVIS && <Link href="/devis" onClick={() => setOpen(false)} className={`block rounded-lg px-4 py-3 text-base font-medium hover:bg-white/5 active:bg-white/10 ${isActive("/devis") ? "text-[var(--accent)] font-semibold bg-white/[0.03]" : ""}`}>CONFIGURER MON PC</Link>}
@@ -412,19 +358,11 @@ export default function Header({ user }: { user?: UserInfo extends undefined ? n
               {user ? (
                 <div className="mt-5 pt-5 border-t border-white/10 space-y-1">
                   {user.role === "ADMIN" ? (
-                    <>
-                      <Link href="/admin" onClick={() => setOpen(false)} className="block rounded-lg px-4 py-3 text-base hover:bg-white/5 active:bg-white/10">Tableau de bord admin</Link>
-                      <Link href="/marketplace/seller/dashboard" onClick={() => setOpen(false)} className="block rounded-lg px-4 py-3 text-base hover:bg-white/5 active:bg-white/10">Espace vendeur</Link>
-                      <Link href="/marketplace/my-orders" onClick={() => setOpen(false)} className="block rounded-lg px-4 py-3 text-base hover:bg-white/5 active:bg-white/10">Mes achats marketplace</Link>
-                      <Link href="/marketplace/new" onClick={() => setOpen(false)} className="block rounded-lg px-4 py-3 text-base hover:bg-white/5 active:bg-white/10">Vendre mon ordinateur</Link>
-                    </>
+                    <Link href="/admin" onClick={() => setOpen(false)} className="block rounded-lg px-4 py-3 text-base hover:bg-white/5 active:bg-white/10">Tableau de bord admin</Link>
                   ) : (
                     <>
                       <Link href="/orders" onClick={() => setOpen(false)} className="block rounded-lg px-4 py-3 text-base hover:bg-white/5 active:bg-white/10">Suivi de commande</Link>
                       <Link href="/account" onClick={() => setOpen(false)} className="block rounded-lg px-4 py-3 text-base hover:bg-white/5 active:bg-white/10">Mon compte</Link>
-                      <Link href="/marketplace/my-orders" onClick={() => setOpen(false)} className="block rounded-lg px-4 py-3 text-base hover:bg-white/5 active:bg-white/10">Mes achats marketplace</Link>
-                      <Link href="/marketplace/seller/dashboard" onClick={() => setOpen(false)} className="block rounded-lg px-4 py-3 text-base hover:bg-white/5 active:bg-white/10">Espace vendeur</Link>
-                      <Link href="/marketplace/new" onClick={() => setOpen(false)} className="block rounded-lg px-4 py-3 text-base hover:bg-white/5 active:bg-white/10">Vendre mon ordinateur</Link>
                     </>
                   )}
                   <button onClick={() => { setOpen(false); handleLogout(); }} className="mt-2 block w-full text-left rounded-lg px-4 py-3 text-base hover:bg-white/5 active:bg-white/10">Se déconnecter</button>

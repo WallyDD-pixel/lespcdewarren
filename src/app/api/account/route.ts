@@ -33,23 +33,7 @@ export async function GET() {
       },
     });
 
-    // Ajouter commandes marketplace achetées (côté acheteur)
-    const recentMarketplaceOrders = await prisma.marketplaceOrder.findMany({
-      where: { buyerId: user.id },
-      orderBy: { createdAt: "desc" },
-      take: 5,
-      select: {
-        id: true,
-        amountCents: true,
-        currency: true,
-        status: true,
-        createdAt: true,
-        sellerId: true,
-        listing: { select: { id: true, title: true } },
-      },
-    });
-
-    return NextResponse.json({ user, recentOrders, recentMarketplaceOrders });
+    return NextResponse.json({ user, recentOrders });
   } catch (e) {
     console.error(e);
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });

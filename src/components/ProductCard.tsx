@@ -12,6 +12,8 @@ export type ProductCardData = {
   highlights?: string[];
   // Nouveau: liste courte des composants à afficher (prioritaire sur highlights)
   components?: string[];
+  /** Aperçu perf jeux (2 lignes max), depuis specs.gameBenchmarks */
+  perfTeaser?: { label: string; sub: string }[];
 };
 
 function formatPrice(cents: number) {
@@ -155,6 +157,20 @@ export default function ProductCard({ p }: { p: ProductCardData }) {
                 ))}
               </ul>
             )}
+            {p.perfTeaser && p.perfTeaser.length > 0 && (
+              <div className="mt-3 rounded-lg border border-[var(--accent)]/25 bg-black/35 px-2.5 py-2">
+                <div className="text-[10px] font-semibold uppercase tracking-wide text-[var(--accent)]">Perf jeux</div>
+                <ul className="mt-1.5 space-y-1.5 text-[11px] md:text-xs text-white/80">
+                  {p.perfTeaser.map((row, i) => (
+                    <li key={i} className="leading-tight">
+                      <span className="font-medium text-white/95">{row.label}</span>
+                      <span className="text-white/55"> — </span>
+                      <span className="text-white/75">{row.sub}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
           {/* Bottom bar */}
           <div className="absolute inset-x-0 bottom-0">
@@ -177,5 +193,4 @@ export default function ProductCard({ p }: { p: ProductCardData }) {
       </div>
     </div>
   );
-// ...existing code...
 }

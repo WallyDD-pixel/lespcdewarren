@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useCart } from "@/store/cart";
 import { SHOW_CATALOGUE } from "@/lib/featureFlags";
+import { teaserBenchmarkCards } from "@/lib/gameBenchmarks";
 
 type Product = {
   id: number;
@@ -414,6 +415,16 @@ export default function CataloguePage() {
                           ))}
                         </ul>
                       ) : null}
+                      {isPc &&
+                        (() => {
+                          const te = teaserBenchmarkCards(p.specs, 1);
+                          if (!te?.[0]) return null;
+                          return (
+                            <div className="mt-2 rounded-md border border-[var(--accent)]/25 bg-[var(--accent)]/5 px-2 py-1.5 text-[11px] leading-snug text-white/80">
+                              <span className="font-semibold text-[var(--accent)]">Perf jeux</span> · {te[0].label}: {te[0].sub}
+                            </div>
+                          );
+                        })()}
                     </div>
                   </Link>
                   <div className="flex items-center justify-between border-t border-white/10 p-3">

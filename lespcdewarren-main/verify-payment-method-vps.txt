@@ -1,0 +1,25 @@
+Commandes pour vérifier et corriger sur le VPS:
+
+1. Vérifier que la colonne existe (avec la bonne syntaxe SQLite):
+sqlite3 prisma/prod.db "PRAGMA table_info(\"Order\");" | grep paymentMethod
+
+OU
+
+sqlite3 prisma/prod.db ".schema Order" | grep paymentMethod
+
+2. Si la colonne existe, vérifier le schéma Prisma:
+grep paymentMethod prisma/schema.prisma
+
+3. Si le schéma contient paymentMethod mais Prisma ne le voit pas, forcer la régénération:
+rm -rf node_modules/.prisma
+rm -rf node_modules/@prisma/client
+npx prisma generate
+
+4. Vérifier que le client généré contient paymentMethod:
+grep -r "paymentMethod" node_modules/.prisma/client/ | head -3
+
+5. Si tout est OK, rebuild et redémarrer:
+rm -rf .next
+npm run build
+pm2 restart lespcdewarren
+

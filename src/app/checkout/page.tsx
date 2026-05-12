@@ -4,35 +4,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useCart } from "@/store/cart";
 import { getShippingRates, getSupportedCountries, toISO2 } from "@/lib/shipping";
-import { useSearchParams } from "next/navigation";
 
 export default function CheckoutPage() {
   const { items, totalCents } = useCart();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
-  const searchParams = useSearchParams();
-  const listingIdParam = searchParams.get("listingId");
-  const [mpListing, setMpListing] = useState<any | null>(null);
-  const isMarketplace = !!listingIdParam && !!mpListing;
-
-  // Charger l'annonce marketplace si listingId est présent
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      if (!listingIdParam) { setMpListing(null); return; }
-      try {
-        const res = await fetch(`/api/marketplace/listings/${listingIdParam}`);
-        const j = await res.json();
-        if (!alive) return;
-        setMpListing(j?.listing || null);
-      } catch {
-        if (alive) setMpListing(null);
-      }
-    })();
-    return () => { alive = false; };
-  }, [listingIdParam]);
-
   // Prefill from user profile via API
   const [isAuthed, setIsAuthed] = useState(false);
   const [profile, setProfile] = useState<{
@@ -90,9 +67,10 @@ export default function CheckoutPage() {
   // Address mode: use saved or enter new
   const [addressMode, setAddressMode] = useState<"saved" | "new">("saved");
   const [saveToProfile, setSaveToProfile] = useState(true);
+  const [acceptCgv, setAcceptCgv] = useState(false);
   const [savedCountry, setSavedCountry] = useState<string | null>(null);
 
-  // Étapes du checkout: toujours commencer par l'adresse (y compris marketplace)
+  // Étapes du checkout
   const [step, setStep] = useState<"address" | "card">("address");
 
   // Autocomplétion d'adresse via Google Places
@@ -125,7 +103,7 @@ export default function CheckoutPage() {
     if (!profile || !profile.address1) setAddressMode("new");
   }, [profile]);
 
-  // Compute current shipping address source early (inutile en marketplace mais conservé)
+  // Compute current shipping address source
   const shippingFrom = useMemo(() => {
     if (addressMode === "saved" && profile) {
       return { ...profile, country: savedCountry || profile.country } as any;
@@ -193,14 +171,13 @@ export default function CheckoutPage() {
     return () => { if (addrTimer.current) clearTimeout(addrTimer.current); };
   }, [form.address1, form.country, addrFocus, googleReady]);
 
-  // Totaux: basés sur le panier (store) ou l’annonce (marketplace)
-  const baseTotal = useMemo(() => (isMarketplace ? (mpListing?.priceCents || 0) : totalCents()), [isMarketplace, mpListing, items, totalCents]);
+  const baseTotal = useMemo(() => totalCents(), [items, totalCents]);
 
   const [shippingRates, setShippingRates] = useState<Array<{ id: string; label: string; priceCents: number; carrier: string; etaDays: number }>>([]);
   const [shippingMethodId, setShippingMethodId] = useState<string | null>(null);
 
   useEffect(() => {
-    // Calcule les tarifs de livraison pour tous les modes (boutique & marketplace)
+    // Tarifs de livraison selon l’adresse et le montant
     const addr = { country: (shippingFrom as any).country, zip: (shippingFrom as any).zip, city: (shippingFrom as any).city };
     const rates = getShippingRates(addr, baseTotal);
     setShippingRates(rates);
@@ -221,13 +198,14 @@ export default function CheckoutPage() {
     [shippingFrom.firstName, shippingFrom.lastName]
   );
 
-  // Validation adresse + email invité (désormais aussi en marketplace)
+  // Validation adresse + email invité
   const validate = () => {
     const { firstName, lastName, address1, zip, city, country, phone } = shippingFrom as any;
     if (!firstName || !lastName || !address1 || !zip || !city || !country || !phone) return "Veuillez remplir tous les champs obligatoires.";
     const zipOk = /^\d{4,6}$/.test(zip as string) || /^[A-Za-z0-9\-\s]{3,10}$/.test(zip as string);
     if (!zipOk) return "Code postal invalide.";
     if (!shippingMethodId) return "Choisissez un mode de livraison.";
+    if (!acceptCgv) return "Veuillez accepter les CGV et les CGU pour continuer.";
     if (!isAuthed) {
       const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userEmail);
       if (!emailOk) return "Email invalide.";
@@ -280,7 +258,6 @@ export default function CheckoutPage() {
 
   const payWithStripe = async () => {
     setError(null);
-    if (isMarketplace && !isAuthed) { setError("Connectez-vous pour payer cette annonce."); return; }
     const validationError = validate();
     if (validationError) return setError(validationError);
 
@@ -296,25 +273,6 @@ export default function CheckoutPage() {
         phone: (shippingFrom as any).phone || "",
       };
 
-      if (isMarketplace && listingIdParam) {
-        const res = await fetch("/api/stripe/marketplace/create-session", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            listingId: Number(listingIdParam),
-            shippingMethodId,
-            shipping: shippingPayload,
-          }),
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data?.error || "Impossible de créer la session de paiement");
-        if (data?.url) {
-          window.location.href = data.url;
-          return;
-        }
-        throw new Error("URL de paiement manquante");
-      }
-
       const res = await fetch("/api/stripe/create-checkout-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -323,7 +281,6 @@ export default function CheckoutPage() {
           shipping: shippingPayload,
           shippingMethodId,
           email: userEmail,
-          isMarketplace: false,
         }),
       });
       const data = await res.json();
@@ -444,8 +401,7 @@ export default function CheckoutPage() {
     return Array.from(map.entries());
   }, []);
 
-  // Si panier vide et pas d’annonce marketplace => message vide
-  if (!items.length && !isMarketplace) {
+  if (!items.length) {
     return (
       <main className="container py-10">
         <div className="card p-6">
@@ -456,10 +412,7 @@ export default function CheckoutPage() {
     );
   }
 
-  // Items à afficher dans le résumé
-  const itemsView: Array<{ key: string; name: string; quantity: number; priceCents: number }> = isMarketplace
-    ? (mpListing ? [{ key: `mp-${mpListing.id}`, name: mpListing.title, quantity: 1, priceCents: mpListing.priceCents }] : [])
-    : items.map((i) => ({ key: `${i.productId}-${i.variantId ?? 0}`, name: i.name, quantity: i.quantity, priceCents: i.priceCents }));
+  const itemsView = items.map((i) => ({ key: `${i.productId}-${i.variantId ?? 0}`, name: i.name, quantity: i.quantity, priceCents: i.priceCents }));
 
   return (
     <main className="container py-6 md:py-10">
@@ -469,31 +422,7 @@ export default function CheckoutPage() {
       <div className="grid md:grid-cols-3 gap-6">
         {/* Left: address + card steps */}
         <section className="md:col-span-2 space-y-4">
-          {/* Vendeur (marketplace) */}
-          {isMarketplace && mpListing && (
-            <div className="card p-5">
-              <div className="text-sm font-semibold mb-2">Vendeur</div>
-              <div className="flex items-center gap-3">
-                <div className="h-11 w-11 rounded-full bg-white/10 flex items-center justify-center text-sm font-semibold">
-                  {(mpListing.seller?.name || "V").charAt(0).toUpperCase()}
-                </div>
-                <div className="min-w-0">
-                  <div className="font-medium truncate">{mpListing.seller?.name || "Vendeur"}</div>
-                  {(mpListing.city || mpListing.zip) ? (
-                    <div className="text-xs text-gray-400 truncate">{[mpListing.city, mpListing.zip].filter(Boolean).join(" ")}</div>
-                  ) : null}
-                  {mpListing.seller?.createdAt ? (
-                    <div className="text-xs text-gray-400">Membre depuis {new Date(mpListing.seller.createdAt).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}</div>
-                  ) : null}
-                </div>
-              </div>
-              <div className="mt-3 text-xs text-white/70">
-                Vous achetez cet article auprès d’un vendeur du marketplace. Le vendeur sera notifié après paiement.
-              </div>
-            </div>
-          )}
-
-          {/* Adresse de livraison (affichée aussi en marketplace) */}
+          {/* Adresse de livraison */}
           {step === "address" && (
             <div className="card p-5 space-y-3">
               <h2 className="font-semibold">Adresse de livraison</h2>
@@ -660,7 +589,7 @@ export default function CheckoutPage() {
                 </label>
               )}
 
-              {/* Choix du mode de livraison (désormais visible aussi pour marketplace) */}
+              {/* Choix du mode de livraison */}
               <div className="mt-2">
                 <h3 className="font-medium mb-2">Mode de livraison</h3>
                 {/* Option large pour retrait en main propre (unique) */}
@@ -707,6 +636,30 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
+              <label className="mt-4 flex items-start gap-2 text-sm text-white/80">
+                <input
+                  type="checkbox"
+                  className="accent-[var(--accent)] mt-1 shrink-0"
+                  checked={acceptCgv}
+                  onChange={(e) => setAcceptCgv(e.target.checked)}
+                />
+                <span>
+                  J&apos;ai lu et j&apos;accepte les{" "}
+                  <Link href="/cgv" className="text-[var(--accent)] underline">
+                    conditions générales de vente (CGV)
+                  </Link>{" "}
+                  et les{" "}
+                  <Link href="/terms" className="text-[var(--accent)] underline">
+                    conditions générales d&apos;utilisation (CGU)
+                  </Link>
+                  , ainsi que la{" "}
+                  <Link href="/privacy" className="text-[var(--accent)] underline">
+                    politique de confidentialité
+                  </Link>
+                  .
+                </span>
+              </label>
+
               <div className="pt-2 flex items-center justify-end gap-3">
                 <button type="submit" disabled={loading} className="btn-primary">Continuer vers le paiement</button>
               </div>
@@ -732,7 +685,7 @@ export default function CheckoutPage() {
                 <input type="email" className="input mt-1" value={userEmail} disabled />
               </div>
 
-              {/* Choix du mode de livraison (désormais visible aussi pour marketplace) */}
+              {/* Choix du mode de livraison */}
               <div className="mt-2">
                 <h3 className="font-medium mb-2">Mode de livraison</h3>
                 {shippingRates.length === 0 ? (
@@ -762,6 +715,30 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
+              <label className="mt-4 flex items-start gap-2 text-sm text-white/80">
+                <input
+                  type="checkbox"
+                  className="accent-[var(--accent)] mt-1 shrink-0"
+                  checked={acceptCgv}
+                  onChange={(e) => setAcceptCgv(e.target.checked)}
+                />
+                <span>
+                  J&apos;ai lu et j&apos;accepte les{" "}
+                  <Link href="/cgv" className="text-[var(--accent)] underline">
+                    conditions générales de vente (CGV)
+                  </Link>{" "}
+                  et les{" "}
+                  <Link href="/terms" className="text-[var(--accent)] underline">
+                    conditions générales d&apos;utilisation (CGU)
+                  </Link>
+                  , ainsi que la{" "}
+                  <Link href="/privacy" className="text-[var(--accent)] underline">
+                    politique de confidentialité
+                  </Link>
+                  .
+                </span>
+              </label>
+
               <div className="pt-2 flex items-center justify-end gap-3">
                 <button disabled={loading} className="btn-primary">Continuer vers le paiement</button>
               </div>
@@ -770,25 +747,10 @@ export default function CheckoutPage() {
           )}
 
           {step === "card" && (
-            (isMarketplace && !isAuthed) ? (
-              <div className="card p-5 space-y-3">
-                <h2 className="font-semibold">Connexion requise</h2>
-                <p className="text-sm text-white/80">Vous devez être connecté pour payer une annonce du marketplace.</p>
-                <div>
-                  <Link
-                    className="btn-primary"
-                    href={`/login?next=${encodeURIComponent(`/checkout${listingIdParam ? `?listingId=${listingIdParam}` : ''}`)}`}
-                  >
-                    Se connecter
-                  </Link>
-                </div>
-              </div>
-            ) : (
               <div className="card p-5 space-y-4">
                 <h2 className="font-semibold">Paiement</h2>
 
-                {!isMarketplace && (
-                  <div className="flex flex-wrap gap-3">
+                <div className="flex flex-wrap gap-3">
                     <button
                       type="button"
                       onClick={() => setPaymentMode("stripe")}
@@ -804,16 +766,17 @@ export default function CheckoutPage() {
                       Paiement sur place
                     </button>
                   </div>
-                )}
 
                 {paymentMode === "stripe" ? (
                   <>
                     <p className="text-sm text-white/70">Transaction sécurisée via Stripe (3D Secure). Vous serez redirigé vers la page de paiement Stripe.</p>
                     <div className="-mt-1"><AcceptedCards /></div>
                     <p className="text-xs text-white/60 mt-1">
-                      En cas de problème de paiement, merci de me contacter par email à{" "}
-                      <span className="font-medium">wallydibombepro@gmail.com</span>, sur Instagram{" "}
-                      <span className="font-medium">@warrenoff</span> ou sur Snapchat{" "}
+                      En cas de problème de paiement, merci de nous contacter par email à{" "}
+                      <a className="font-medium text-[var(--accent)] underline" href="mailto:warren.lespcdewarren@gmail.com">
+                        warren.lespcdewarren@gmail.com
+                      </a>
+                      , sur Instagram <span className="font-medium">@warrenoff</span> ou sur Snapchat{" "}
                       <span className="font-medium">@warrenofff</span>.
                     </p>
                     <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
@@ -873,32 +836,11 @@ export default function CheckoutPage() {
 
                 {error && <p className="text-sm text-red-400 mt-3">{error}</p>}
               </div>
-            )
           )}
         </section>
 
         {/* Right: summary */}
         <aside className="card p-5 h-max sticky top-4">
-          {isMarketplace && step === "card" && mpListing && (
-            <div className="mb-4 rounded-md border border-white/10 bg-white/[0.03] p-4">
-              <div className="text-sm font-semibold mb-2">Vendeur</div>
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-white/10 flex items-center justify-center text-sm font-semibold">
-                  {(mpListing.seller?.name || "V").charAt(0).toUpperCase()}
-                </div>
-                <div className="min-w-0">
-                  <div className="font-medium truncate">{mpListing.seller?.name || "Vendeur"}</div>
-                  {(mpListing.city || mpListing.zip) ? (
-                    <div className="text-xs text-gray-400 truncate">{[mpListing.city, mpListing.zip].filter(Boolean).join(" ")}</div>
-                  ) : null}
-                </div>
-              </div>
-              <div className="mt-3 flex items-center justify-between text-xs text-gray-400">
-                <span>Le vendeur est notifié après le paiement.</span>
-                <Link href={`/marketplace/${mpListing.id}`} className="underline">Voir l'annonce</Link>
-              </div>
-            </div>
-          )}
           <div className="mb-3">
             <h3 className="font-semibold mb-2">Votre commande</h3>
             <ul className="space-y-2 text-sm">

@@ -5,7 +5,6 @@ import {
   LayoutDashboard,
   Users,
   Tags,
-  Store,
   Banknote,
   Package,
   ShoppingCart,
@@ -19,21 +18,13 @@ import {
 } from "lucide-react";
 
 const sections: Array<{ title?: string; items: Array<{ href: string; label: string; Icon: any }> }> = [
-  { items: [ { href: "/admin", label: "Dashboard", Icon: LayoutDashboard } ] },
-  {
-    title: "Marketplace",
-    items: [
-      { href: "/admin/marketplace-orders", label: "Cmd Marketplace", Icon: Store },
-      { href: "/admin/withdrawals", label: "Retraits", Icon: Banknote },
-      { href: "/admin/listings", label: "Annonces", Icon: Tags },
-    ],
-  },
+  { items: [{ href: "/admin", label: "Dashboard", Icon: LayoutDashboard }] },
   {
     title: "Boutique",
     items: [
-  { href: "/admin/orders", label: "Cmd Boutique", Icon: ShoppingCart },
-  { href: "/admin/contest", label: "Créer une commande", Icon: Banknote },
-  { href: "/admin/contest/manage", label: "Concours", Icon: Gift },
+      { href: "/admin/orders", label: "Cmd Boutique", Icon: ShoppingCart },
+      { href: "/admin/contest", label: "Créer une commande", Icon: Banknote },
+      { href: "/admin/contest/manage", label: "Concours", Icon: Gift },
       { href: "/admin/products", label: "Produits", Icon: Package },
       { href: "/admin/invoices", label: "Factures", Icon: FolderTree },
       { href: "/admin/categories", label: "Catégories", Icon: FolderTree },

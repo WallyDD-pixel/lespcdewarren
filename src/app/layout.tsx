@@ -84,7 +84,7 @@ export default async function RootLayout({
         {/* Toast notifications */}
         <Toaster />
 
-        {/* Spacing dynamique: on réduit le padding bas et on masque le footer sur /messages */}
+        {/* Spacing dynamique (padding principal géré par MainContainer) */}
         <MainContainer>{children}</MainContainer>
 
         <ConditionalFooter>

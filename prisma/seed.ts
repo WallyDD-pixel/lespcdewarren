@@ -1,6 +1,11 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
+// Même défaut que `src/lib/prisma.ts` : le seed ne charge pas forcément `.env`
+if (!process.env.DATABASE_URL && process.env.NODE_ENV !== "production") {
+  process.env.DATABASE_URL = "file:./prisma/dev.db";
+}
+
 const prisma = new PrismaClient();
 
 async function main() {
@@ -22,14 +27,8 @@ async function main() {
   const safeDelete = async (fn: () => Promise<any>) => { try { await fn(); } catch {} };
 
   await safeDelete(() => prisma.notification.deleteMany());
-  await safeDelete(() => prisma.withdrawalRequest.deleteMany());
-  await safeDelete(() => prisma.messageImage.deleteMany());
-  await safeDelete(() => prisma.message.deleteMany());
-  await safeDelete(() => prisma.conversation.deleteMany());
-  await safeDelete(() => prisma.marketplaceOrder.deleteMany());
-  await safeDelete(() => prisma.listingImage.deleteMany());
-  await safeDelete(() => prisma.favoriteListing.deleteMany());
-  await safeDelete(() => prisma.listing.deleteMany());
+
+  await safeDelete(() => prisma.contestParticipant.deleteMany());
 
   await safeDelete(() => prisma.orderItem.deleteMany());
   await safeDelete(() => prisma.order.deleteMany());
@@ -40,6 +39,8 @@ async function main() {
   await safeDelete(() => prisma.testimonial.deleteMany());
   await safeDelete(() => prisma.review.deleteMany());
   await safeDelete(() => prisma.userProfile.deleteMany());
+  // Les commandes peuvent référencer un user : détacher avant deleteMany global
+  await safeDelete(() => prisma.order.updateMany({ data: { userId: null } }));
   await safeDelete(() => prisma.user.deleteMany());
 
   // Catégories & Produits (boutique)
@@ -122,7 +123,21 @@ async function main() {
       stock: 5,
       categoryId: pcs.id,
       images: { create: [{ url: "/brand-hero-1.png", alt: "PC Création" }] },
-      specs: { role: "pc", cpu: "Intel i7-12700F", gpu: "RTX 3070", ram: ["32 Go"], storage: ["1 To SSD"], highlights: ["Silencieux", "Design sobre"] },
+      specs: {
+        role: "pc",
+        cpu: "Intel i7-12700F",
+        gpu: "RTX 3070",
+        ram: ["32 Go"],
+        storage: ["1 To SSD"],
+        highlights: ["Silencieux", "Design sobre"],
+        benchmarkDisclaimer:
+          "Chiffres d’exemple pour la démo boutique ; à remplacer par vos mesures réelles si vous les publiez.",
+        gameBenchmarks: [
+          { game: "Elden Ring", resolution: "1440p", preset: "Maximum", fpsAvg: 95, fps1Low: 72 },
+          { game: "Valorant", resolution: "1080p", preset: "Bas", fpsAvg: 320, fps1Low: 210 },
+          { game: "Apex Legends", resolution: "1440p", preset: "Compétitif", fpsAvg: 165, fps1Low: 118 },
+        ],
+      },
     },
   });
   const p3 = await prisma.product.create({
@@ -138,6 +153,66 @@ async function main() {
       specs: { role: "pc", cpu: "Ryzen 7 5700G", gpu: "RTX 4060 Ti", ram: ["16 Go"], storage: ["1 To SSD"], highlights: ["Ultra compact", "RGB"] },
     },
   });
+
+  // Produit fictif dev : page produit avec tableaux de FPS (données non contractuelles)
+  await prisma.product.create({
+    data: {
+      name: "[DÉMO] PC Gamer Ryzen 7 7800X3D / RTX 4070 Super",
+      slug: "demo-pc-perf-jeux",
+      description:
+        "Fiche produit de démonstration pour le développement. Les FPS listés sont fictifs et servent uniquement à valider l’affichage « performances en jeu » sur le site.",
+      priceCents: 189900,
+      sku: "DEV-DEMO-BENCH-001",
+      stock: 99,
+      categoryId: pcs.id,
+      images: { create: [{ url: "/hero-1.jpg", alt: "PC gamer démo" }] },
+      specs: {
+        role: "pc",
+        cpu: "AMD Ryzen 7 7800X3D",
+        gpu: "NVIDIA GeForce RTX 4070 Super",
+        ram: ["32 Go DDR5 6000 MHz"],
+        storage: ["2 To NVMe Gen4"],
+        psu: "850W 80+ Gold",
+        os: "Windows 11",
+        highlights: ["Démo développeur", "Bench jeux fictifs", "Ne pas commander en prod sans retirer le seed"],
+        benchmarkDisclaimer:
+          "Données entièrement fictives pour l’environnement de développement. Les performances réelles dépendent du jeu, des pilotes, de la température et des réglages.",
+        gameBenchmarks: [
+          { game: "Cyberpunk 2077", resolution: "1440p", preset: "Ultra + RT", fpsAvg: 78, fps1Low: 62 },
+          { game: "Marvel's Spider-Man", resolution: "1440p", preset: "Très élevé", fpsAvg: 112, fps1Low: 89 },
+          { game: "Call of Duty: Warzone", resolution: "1080p", preset: "Compétitif", fpsAvg: 185, fps1Low: 142 },
+          { game: "Fortnite", resolution: "1080p", preset: "Performance", fpsAvg: 320, fps1Low: 210 },
+          { game: "Counter-Strike 2", resolution: "1080p", preset: "Moyen", fpsAvg: 380, fps1Low: 240 },
+          { game: "Microsoft Flight Simulator", resolution: "1440p", preset: "Élevé", fpsAvg: 68, fps1Low: 52 },
+        ],
+      },
+    },
+  });
+
+  const SEED_USER_EMAILS = ["admin@example.com", "seller@example.com", "buyer@example.com"] as const;
+
+  /** Supprime proprement les comptes seed (FK commandes / avis / notifs / profil). */
+  async function removeSeedUsers() {
+    const users = await prisma.user.findMany({
+      where: { email: { in: [...SEED_USER_EMAILS] } },
+      select: { id: true },
+    });
+    const ids = users.map((u) => u.id);
+    if (!ids.length) return;
+    await prisma.order.updateMany({ where: { userId: { in: ids } }, data: { userId: null } });
+    await prisma.notification.deleteMany({ where: { userId: { in: ids } } });
+    await prisma.review.deleteMany({ where: { userId: { in: ids } } });
+    await prisma.userProfile.deleteMany({ where: { userId: { in: ids } } });
+    // Anciennes tables SQLite (marketplace retiré du schéma) peuvent encore référencer User
+    await prisma.$executeRawUnsafe("PRAGMA foreign_keys = OFF");
+    try {
+      await prisma.user.deleteMany({ where: { id: { in: ids } } });
+    } finally {
+      await prisma.$executeRawUnsafe("PRAGMA foreign_keys = ON");
+    }
+  }
+
+  await removeSeedUsers();
 
   // Utilisateurs
   const hashAdmin = await bcrypt.hash("admin123", 10);
@@ -187,57 +262,6 @@ async function main() {
     },
   });
 
-  // Marketplace: une annonce du vendeur
-  const listing = await prisma.listing.create({
-    data: {
-      title: "PC d'occasion i5/GTX 1660",
-      slug: "pc-occasion-i5-gtx1660",
-      description: "Tour révisée, prête à jouer en 1080p.",
-      priceCents: 45000,
-      condition: "VERY_GOOD" as any,
-      status: "PUBLISHED" as any,
-      sellerId: seller.id,
-      images: { create: [{ url: "/hero-1.jpg", alt: "PC" }] },
-      city: "Paris",
-      zip: "75001",
-      country: "FR",
-      allowOnline: true,
-      allowInPerson: true,
-    },
-  });
-
-  // Commande PAID (à expédier) pour tester l’encart “Action requise”
-  const mpPaid = await prisma.marketplaceOrder.create({
-    data: {
-      listingId: listing.id,
-      buyerId: buyer.id,
-      sellerId: seller.id,
-      amountCents: listing.priceCents,
-      currency: "EUR",
-      paymentMethod: "PAYPAL_ONLINE" as any,
-      status: "PAID" as any,
-      paypalOrderId: "TEST-ORDER-PAID",
-      paypalCaptureId: "TEST-CAPTURE-PAID",
-    },
-  });
-
-  // Commande COMPLETED (déjà reçue) avec suivi
-  const mpCompleted = await (prisma as any).marketplaceOrder.create({
-    data: {
-      listingId: listing.id,
-      buyerId: buyer.id,
-      sellerId: seller.id,
-      amountCents: 42000,
-      currency: "EUR",
-      paymentMethod: "PAYPAL_ONLINE",
-      status: "COMPLETED",
-      paypalOrderId: "TEST-ORDER-COMP",
-      paypalCaptureId: "TEST-CAPTURE-COMP",
-      trackingNumber: "AB123456789FR",
-      trackingUrl: "https://www.laposte.fr/outils/suivre-vos-envois?code=AB123456789FR",
-    },
-  });
-
   // Témoignages (extraits)
   await prisma.testimonial.createMany({
     data: [
@@ -246,17 +270,14 @@ async function main() {
     ],
   });
 
-  console.log("Seed terminé");
+  console.log("Seed terminé — produit bench démo : /produit/demo-pc-perf-jeux");
   console.table([
     { role: "ADMIN", email: admin.email, password: "admin123" },
     { role: "VENDEUR", email: seller.email, password: "seller123" },
     { role: "ACHETEUR", email: buyer.email, password: "buyer123" },
   ]);
   console.log({
-    products: pcProducts.map(p => p.slug),
-    listing: listing.slug,
-    mpPaid: mpPaid.id,
-    mpCompleted: mpCompleted.id
+    products: pcProducts.map((p) => p.slug),
   });
 }
 

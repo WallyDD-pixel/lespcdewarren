@@ -94,10 +94,6 @@ export default function OrdersPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [orders, setOrders] = useState<Order[] | null>(null);
-  const [showHandOverModal, setShowHandOverModal] = useState(false);
-  const [markingHandOver, setMarkingHandOver] = useState(false);
-  const [handOverOrderId, setHandOverOrderId] = useState<number | null>(null);
-  const [handOverProof, setHandOverProof] = useState<string | null>(null);
   const searchParams = useSearchParams();
   const selectedId = searchParams.get("id");
 
@@ -151,22 +147,6 @@ export default function OrdersPage() {
 
   const selectedOrder = selectedId && orders ? orders.find((o) => String(o.id) === String(selectedId)) : null;
 
-  // Helper pour marquer reçu via endpoint marketplace si l’id correspond
-  async function markReceivedMarketplace(id: number) {
-    try {
-      const res = await fetch(`/api/marketplace/orders/${id}/confirm-received`, { method: "POST" });
-      if (res.ok) {
-        // recharger détail
-        const r = await fetch(`/api/orders?id=${encodeURIComponent(String(id))}`);
-        const d = await r.json();
-        if (r.ok && d?.orders) setOrders(d.orders);
-      } else {
-        const j = await res.json().catch(() => null);
-        alert(j?.error || "Erreur");
-      }
-    } catch {}
-  }
-
   const Tracking = ({ order }: { order: Order }) => {
     if (!order.trackingUrl && !order.trackingNumber) return null;
     const label = order.trackingNumber ? `Suivre l'expédition (${order.trackingNumber})` : "Suivre l'expédition";
@@ -210,15 +190,6 @@ export default function OrdersPage() {
             return <>
               <Stepper current={step} />
               <Tracking order={selectedOrder} />
-              {/* Action marquer reçu si payé (pour commandes marketplace) */}
-              {selectedOrder.status === "PAID" && (
-                <div className="mt-4">
-                  <div className="flex gap-3">
-                    <button className="btn-secondary" onClick={() => markReceivedMarketplace(selectedOrder.id)}>Marquer reçu</button>
-                    <button className="btn-ghost" onClick={() => { setHandOverOrderId(selectedOrder.id); setShowHandOverModal(true); }}>Remise en mains propres</button>
-                  </div>
-                </div>
-              )}
             </>;
           })()}
         </section>
@@ -301,65 +272,6 @@ export default function OrdersPage() {
               </div>
             ))
           )}
-        </div>
-      )}
-
-      {/* Modal Remise en mains propres */}
-      {showHandOverModal && handOverOrderId && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/50">
-          <div className="bg-black rounded p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold mb-3">Confirmer la remise en mains propres</h3>
-            <p className="text-sm text-white/70 mb-4">Voulez-vous confirmer que vous avez reçu l'article pour la commande n°{handOverOrderId} ? Cette action marquera la commande comme reçue.</p>
-            <label className="block text-sm mb-2">Ajouter une photo (facultatif)</label>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={async (e) => {
-                const f = (e.target as HTMLInputElement).files?.[0];
-                if (!f) { setHandOverProof(null); return; }
-                const reader = new FileReader();
-                reader.onload = () => {
-                  const res = reader.result as string;
-                  // small images only; strip data: prefix
-                  const idx = res.indexOf(',');
-                  setHandOverProof(idx >= 0 ? res.slice(idx + 1) : res);
-                };
-                reader.readAsDataURL(f);
-              }}
-            />
-            <div className="flex justify-end gap-3 mt-4">
-              <button className="btn-ghost" onClick={() => { setShowHandOverModal(false); setHandOverOrderId(null); setHandOverProof(null); }}>Annuler</button>
-              <button
-                className="btn-cart"
-                onClick={async () => {
-                  try {
-                    setMarkingHandOver(true);
-                    const body: any = { }; if (handOverProof) body.proofImage = handOverProof;
-                    const res = await fetch(`/api/marketplace/orders/${handOverOrderId}/confirm-received`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: Object.keys(body).length ? JSON.stringify(body) : undefined });
-                    if (res.ok) {
-                      // reload orders
-                      const r = await fetch(`/api/orders?id=${encodeURIComponent(String(handOverOrderId))}`);
-                      const d = await r.json();
-                      if (r.ok && d?.orders) setOrders(d.orders);
-                      window.dispatchEvent(new CustomEvent('app:toast', { detail: { message: 'Remise confirmée', type: 'success' } }));
-                      setShowHandOverModal(false);
-                      setHandOverOrderId(null);
-                      setHandOverProof(null);
-                    } else {
-                      const j = await res.json().catch(() => null);
-                      window.dispatchEvent(new CustomEvent('app:toast', { detail: { message: j?.error || 'Erreur', type: 'error' } }));
-                    }
-                  } catch (err) {
-                    console.error(err);
-                    window.dispatchEvent(new CustomEvent('app:toast', { detail: { message: 'Erreur réseau', type: 'error' } }));
-                  } finally {
-                    setMarkingHandOver(false);
-                  }
-                }}
-                disabled={markingHandOver}
-              >{markingHandOver ? 'Validation…' : 'Confirmer'}</button>
-            </div>
-          </div>
         </div>
       )}
     </main>

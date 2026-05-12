@@ -1,37 +1,15 @@
-// Script pour migrer les anciennes valeurs de paymentMethod
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
-
+/**
+ * Ancien script de migration PayPal / colonnes paymentMethod (boutique + marketplace).
+ * Le schéma actuel n’expose plus ces champs : ce fichier est conservé pour l’historique
+ * et ne modifie plus la base.
+ */
 async function main() {
-  console.log('🔄 Migration des méthodes de paiement...');
-
-  // Mettre à jour les commandes boutique avec SQL brut
-  const ordersResult = await prisma.$executeRaw`
-    UPDATE "Order" 
-    SET paymentMethod = 'PAYPAL_ONLINE_1X' 
-    WHERE paymentMethod = 'PAYPAL_ONLINE'
-  `;
-
-  console.log(`✅ ${ordersResult} commandes boutique mises à jour`);
-
-  // Mettre à jour les commandes marketplace avec SQL brut
-  const marketplaceResult = await prisma.$executeRaw`
-    UPDATE "MarketplaceOrder" 
-    SET paymentMethod = 'PAYPAL_ONLINE_1X' 
-    WHERE paymentMethod = 'PAYPAL_ONLINE'
-  `;
-
-  console.log(`✅ ${marketplaceResult} commandes marketplace mises à jour`);
-
-  console.log('✨ Migration terminée !');
+  console.log(
+    "[migrate-payment-methods] Aucune action : migration obsolète (marketplace retiré, schéma aligné)."
+  );
 }
 
-main()
-  .catch((e) => {
-    console.error('❌ Erreur:', e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

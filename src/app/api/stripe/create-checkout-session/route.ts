@@ -4,13 +4,12 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { getStripeInstance } from "@/lib/stripe";
 import { pickShippingRate } from "@/lib/shipping";
-import { toISO2 } from "@/lib/shipping";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 
 export async function POST(req: NextRequest) {
   try {
-    const { items, shipping, shippingMethodId, email, isMarketplace, listingId } = await req.json();
+    const { items, shipping, shippingMethodId, email } = await req.json();
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json({ error: "Panier vide" }, { status: 400 });
@@ -21,12 +20,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Calculer le montant total
-    let amountCents = 0;
-    if (isMarketplace && listingId) {
-      amountCents = items.reduce((sum: number, item: any) => sum + (item.priceCents || 0), 0);
-    } else {
-      amountCents = items.reduce((sum: number, item: any) => sum + (item.priceCents || 0) * (item.quantity || 1), 0);
-    }
+    const amountCents = items.reduce((sum: number, item: any) => sum + (item.priceCents || 0) * (item.quantity || 1), 0);
 
     // Ajouter les frais de livraison
     const chosen = pickShippingRate(
@@ -110,8 +104,6 @@ export async function POST(req: NextRequest) {
         allowed_countries: ["FR", "BE", "CH", "LU", "MC"],
       },
       metadata: {
-        isMarketplace: String(isMarketplace || false),
-        listingId: listingId ? String(listingId) : "",
         shippingMethodId: shippingMethodId,
         cart: JSON.stringify(items),
         shippingName: shipping.name || "",

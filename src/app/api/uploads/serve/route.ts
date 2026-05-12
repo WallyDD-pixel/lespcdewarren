@@ -22,15 +22,17 @@ export async function GET(req: NextRequest) {
   const session = await getSession();
   if (!session.user) return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
 
-  // If orderId provided, check relation buyer/seller/admin
+  // Si orderId fourni : acheteur (compte ou email) ou admin
   if (orderId) {
     const oId = Number(orderId);
     if (!Number.isFinite(oId)) return NextResponse.json({ error: "orderId invalide" }, { status: 400 });
-    const ord = await prisma.marketplaceOrder.findUnique({ where: { id: oId } });
+    const ord = await prisma.order.findUnique({ where: { id: oId } });
     if (!ord) return NextResponse.json({ error: "Commande introuvable" }, { status: 404 });
     const userId = session.user.id;
-    const isRelated = ord.buyerId === userId || ord.sellerId === userId;
-    if (!isRelated && session.user.role !== "ADMIN") return NextResponse.json({ error: "Interdit" }, { status: 403 });
+    const emailMatch =
+      ord.email.trim().toLowerCase() === session.user.email.trim().toLowerCase();
+    const isBuyer = ord.userId != null ? ord.userId === userId : emailMatch;
+    if (!isBuyer && session.user.role !== "ADMIN") return NextResponse.json({ error: "Interdit" }, { status: 403 });
   }
 
   const base = getProtectedBaseDir();
